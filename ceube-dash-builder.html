@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ceube Dash — Level Builder</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%;
+  background:#0d0d1a;
+  color:#e0e0e0;
+  font-family:'Arial',sans-serif;
+  overflow:hidden;
+  user-select:none;
+}
+
+/* ── TOOLBAR ── */
+#toolbar {
+  position:fixed; top:0; left:0; right:0; height:46px;
+  background:#12121f;
+  border-bottom:1px solid #2a2a4a;
+  display:flex; align-items:center; gap:10px; padding:0 12px;
+  z-index:100;
+}
+#toolbar input[type=text] {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#e0e0e0;
+  padding:4px 8px; border-radius:4px; font-size:13px;
+}
+#toolbar input[type=number] {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#e0e0e0;
+  padding:4px 6px; border-radius:4px; font-size:13px; width:70px;
+}
+#toolbar select {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#e0e0e0;
+  padding:4px 6px; border-radius:4px; font-size:13px;
+}
+#toolbar label { font-size:12px; color:#9090b0; white-space:nowrap; }
+.tb-sep { width:1px; height:28px; background:#2a2a4a; margin:0 4px; }
+.tb-btn {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#e0e0e0;
+  padding:5px 12px; border-radius:4px; cursor:pointer; font-size:13px;
+  white-space:nowrap; transition:background 0.15s;
+}
+.tb-btn:hover { background:#2a2a4a; }
+.tb-btn.primary { background:#006064; border-color:#00bcd4; color:#fff; }
+.tb-btn.primary:hover { background:#00838f; }
+.tb-btn.play { background:#1b5e20; border-color:#4caf50; color:#fff; }
+.tb-btn.play:hover { background:#2e7d32; }
+
+/* ── MAIN LAYOUT ── */
+#main {
+  position:fixed; top:46px; left:0; right:0; bottom:24px;
+  display:flex;
+}
+
+/* ── PALETTE SIDEBAR ── */
+#palette {
+  width:160px; min-width:160px;
+  background:#12121f;
+  border-right:1px solid #2a2a4a;
+  overflow-y:auto;
+  display:flex; flex-direction:column; gap:4px;
+  padding:8px 6px;
+}
+#palette h3 {
+  font-size:10px; color:#6060a0; text-transform:uppercase;
+  letter-spacing:1px; padding:4px 2px 2px 2px;
+  border-bottom:1px solid #2a2a4a; margin-bottom:2px;
+}
+.pal-btn {
+  display:flex; align-items:center; gap:7px;
+  background:#1e1e35; border:1px solid #2a2a4a;
+  border-radius:5px; padding:6px 8px; cursor:pointer;
+  font-size:12px; color:#c0c0e0;
+  transition:background 0.12s, border-color 0.12s;
+}
+.pal-btn:hover { background:#252540; border-color:#4040a0; }
+.pal-btn.active { background:#1a3a5a; border-color:#00e5ff; color:#fff; }
+.pal-icon {
+  width:28px; height:28px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ── CANVAS AREA ── */
+#canvas-wrap {
+  flex:1; position:relative; overflow:hidden;
+  background:#0a0a18;
+}
+#bcanvas {
+  position:absolute; top:0; left:0;
+  cursor:crosshair;
+}
+
+/* ── PROPERTIES PANEL ── */
+#props {
+  width:180px; min-width:180px;
+  background:#12121f;
+  border-left:1px solid #2a2a4a;
+  padding:8px;
+  overflow-y:auto;
+  display:flex; flex-direction:column; gap:6px;
+}
+#props h3 {
+  font-size:10px; color:#6060a0; text-transform:uppercase;
+  letter-spacing:1px; padding:4px 0 4px 0;
+  border-bottom:1px solid #2a2a4a;
+}
+.prop-row {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:4px;
+}
+.prop-row label { font-size:11px; color:#9090b0; }
+.prop-input {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#e0e0e0;
+  padding:3px 5px; border-radius:3px; font-size:12px;
+  width:80px; text-align:right;
+}
+.prop-toggle {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#e0e0e0;
+  padding:2px 6px; border-radius:3px; font-size:11px; cursor:pointer;
+  min-width:40px; text-align:center;
+}
+.prop-toggle.on { background:#006064; border-color:#00e5ff; }
+.prop-section { border-top:1px solid #1e1e35; padding-top:6px; }
+#del-btn {
+  background:#5d1e1e; border:1px solid #a33; color:#ff8080;
+  padding:5px; border-radius:4px; cursor:pointer; font-size:12px;
+  text-align:center; margin-top:4px;
+}
+#del-btn:hover { background:#7a2828; }
+#no-selection { font-size:11px; color:#505070; text-align:center; padding:10px 0; }
+
+/* ── STATUS BAR ── */
+#status {
+  position:fixed; bottom:0; left:0; right:0; height:24px;
+  background:#0d0d1a; border-top:1px solid #2a2a4a;
+  display:flex; align-items:center; padding:0 12px; gap:16px;
+  font-size:11px; color:#6060a0; z-index:100;
+}
+#status span { color:#9090c0; }
+
+/* ── PHYSICS PANEL inside palette ── */
+.phys-row {
+  display:flex; align-items:center; justify-content:space-between; gap:4px;
+  padding:2px 0;
+}
+.phys-row label { font-size:11px; color:#9090b0; }
+.phys-input {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#e0e0e0;
+  padding:2px 4px; border-radius:3px; font-size:11px;
+  width:56px; text-align:right;
+}
+
+/* ── IMAGE UPLOAD PANEL ── */
+.img-slot {
+  display:flex; flex-direction:column; gap:3px;
+  padding:5px 0; border-bottom:1px solid #1e1e35;
+}
+.img-slot:last-child { border-bottom:none; }
+.img-slot-label { font-size:10px; color:#9090b0; }
+.img-slot-row { display:flex; align-items:center; gap:4px; }
+.img-preview {
+  width:36px; height:28px; border:1px solid #3a3a5a;
+  border-radius:3px; background:#0a0a18;
+  object-fit:cover; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:8px; color:#505070;
+  overflow:hidden;
+}
+.img-preview img { width:100%; height:100%; object-fit:cover; }
+.img-btn {
+  background:#1e1e35; border:1px solid #3a3a5a; color:#c0c0e0;
+  padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer;
+  flex:1;
+}
+.img-btn:hover { background:#252540; }
+.img-clear {
+  background:#3a1a1a; border:1px solid #884444; color:#ff8080;
+  padding:2px 5px; border-radius:3px; font-size:10px; cursor:pointer;
+}
+.img-clear:hover { background:#5a2828; }
+
+/* ── SPRITE UPLOAD SECTION in Properties ── */
+.sprite-upload-row {
+  display:flex; align-items:center; gap:4px; margin-top:4px;
+}
+.sprite-preview {
+  width:32px; height:32px; border:1px solid #3a3a5a;
+  border-radius:3px; background:#0a0a18;
+  display:flex; align-items:center; justify-content:center;
+  font-size:8px; color:#505070; overflow:hidden; flex-shrink:0;
+}
+.sprite-preview img { width:100%; height:100%; object-fit:contain; }
+
+/* ── PHYSICS SLIDERS ── */
+.phys-slider-row {
+  display:flex; flex-direction:column; gap:2px; padding:2px 0;
+}
+.phys-slider-row label {
+  display:flex; justify-content:space-between;
+  font-size:11px; color:#9090b0;
+}
+.phys-slider-row label span { color:#c0e0ff; font-size:10px; }
+.phys-slider-row input[type=range] {
+  width:100%; accent-color:#00e5ff;
+  height:4px; cursor:pointer;
+}
+
+/* ── TOAST ── */
+#toast {
+  position:fixed; bottom:32px; left:50%; transform:translateX(-50%);
+  background:#1a3a5a; border:1px solid #00e5ff; color:#fff;
+  padding:8px 20px; border-radius:6px; font-size:13px;
+  opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:200;
+}
+#toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <label>Name:</label>
+  <input type="text" id="tb-name" value="MY LEVEL" style="width:120px">
+  <label>Level:</label>
+  <select id="tb-id">
+    <option value="1">1 🌿 Jungle</option>
+    <option value="2">2 🌆 Cyber City</option>
+    <option value="3">3 🔥 Demon Land</option>
+    <option value="4">4 🦖 Jurassic Park</option>
+    <option value="5">5 ☁️ Heaven</option>
+  </select>
+  <label>Length:</label>
+  <input type="number" id="tb-length" value="9000" min="2000" max="15000" step="500">
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="snap-btn">📐 Snap ON</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="clear-btn" style="background:#3a1a1a;border-color:#884444;color:#ff9090">🗑 Clear All</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="save-btn">💾 Save JSON</button>
+  <button class="tb-btn" id="load-btn">📂 Load JSON</button>
+  <input type="file" id="file-input" accept=".json" style="display:none">
+  <div class="tb-sep"></div>
+  <button class="tb-btn play" id="test-btn">▶ Test Play</button>
+</div>
+
+<!-- MAIN AREA -->
+<div id="main">
+
+  <!-- PALETTE SIDEBAR -->
+  <div id="palette">
+    <h3>Entities</h3>
+    <div class="pal-btn" data-type="spike">
+      <div class="pal-icon" id="icon-spike"></div>
+      <span>Floor Spike</span>
+    </div>
+    <div class="pal-btn" data-type="ceilspike">
+      <div class="pal-icon" id="icon-ceilspike"></div>
+      <span>Ceil Spike</span>
+    </div>
+    <div class="pal-btn" data-type="block">
+      <div class="pal-icon" id="icon-block"></div>
+      <span>Solid Block</span>
+    </div>
+    <div class="pal-btn" data-type="platform">
+      <div class="pal-icon" id="icon-platform"></div>
+      <span>Platform</span>
+    </div>
+    <div class="pal-btn" data-type="portal-in">
+      <div class="pal-icon" id="icon-portal-in"></div>
+      <span>Portal IN</span>
+    </div>
+
+    <div class="pal-btn" data-type="gravflip">
+      <div class="pal-icon" id="icon-gravflip"></div>
+      <span>Grav Flip</span>
+    </div>
+    <div class="pal-btn" data-type="ghostball">
+      <div class="pal-icon" id="icon-ghostball"></div>
+      <span>Ghost Ball</span>
+    </div>
+    <div class="pal-btn" data-type="coin">
+      <div class="pal-icon" id="icon-coin"></div>
+      <span>Emerald</span>
+    </div>
+    <div class="pal-btn" data-type="ceiling">
+      <div class="pal-icon" id="icon-ceiling"></div>
+      <span>Ceiling</span>
+    </div>
+
+    <h3 style="margin-top:8px">Physics</h3>
+    <div class="phys-slider-row">
+      <label>Speed <span id="ph-speed-val">5.5</span></label>
+      <input type="range" id="ph-speed" min="3.0" max="10.0" step="0.1" value="5.5">
+    </div>
+    <div class="phys-slider-row">
+      <label>Jump <span id="ph-jump-val">11.8</span></label>
+      <input type="range" id="ph-jump" min="8.0" max="18.0" step="0.1" value="11.8">
+    </div>
+    <div class="phys-slider-row">
+      <label>Gravity <span id="ph-grav-val">0.70</span></label>
+      <input type="range" id="ph-grav" min="0.40" max="1.20" step="0.05" value="0.70">
+    </div>
+    <div class="phys-slider-row">
+      <label>Max Jumps <span id="ph-jumps-val">1</span></label>
+      <input type="range" id="ph-jumps" min="1" max="3" step="1" value="1">
+    </div>
+
+    <h3 style="margin-top:8px">Images</h3>
+    <div class="img-slot">
+      <div class="img-slot-label">Sky Background</div>
+      <div class="img-slot-row">
+        <div class="img-preview" id="prev-sky"><span>none</span></div>
+        <button class="img-btn" onclick="triggerImgUpload('sky')">Upload</button>
+        <button class="img-clear" onclick="clearImg('sky')">✕</button>
+      </div>
+    </div>
+    <div class="img-slot">
+      <div class="img-slot-label">Ground Texture</div>
+      <div class="img-slot-row">
+        <div class="img-preview" id="prev-ground"><span>none</span></div>
+        <button class="img-btn" onclick="triggerImgUpload('ground')">Upload</button>
+        <button class="img-clear" onclick="clearImg('ground')">✕</button>
+      </div>
+    </div>
+    <div class="img-slot">
+      <div class="img-slot-label">Parallax Layer 1 <span style="color:#505070">(slow)</span></div>
+      <div class="img-slot-row">
+        <div class="img-preview" id="prev-parallax1"><span>none</span></div>
+        <button class="img-btn" onclick="triggerImgUpload('parallax1')">Upload</button>
+        <button class="img-clear" onclick="clearImg('parallax1')">✕</button>
+      </div>
+    </div>
+    <div class="img-slot">
+      <div class="img-slot-label">Parallax Layer 2 <span style="color:#505070">(mid)</span></div>
+      <div class="img-slot-row">
+        <div class="img-preview" id="prev-parallax2"><span>none</span></div>
+        <button class="img-btn" onclick="triggerImgUpload('parallax2')">Upload</button>
+        <button class="img-clear" onclick="clearImg('parallax2')">✕</button>
+      </div>
+    </div>
+    <!-- Hidden file inputs for image uploads -->
+    <input type="file" id="img-file-input" accept="image/*" style="display:none">
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="bcanvas"></canvas>
+  </div>
+
+  <!-- PROPERTIES PANEL -->
+  <div id="props">
+    <h3>Selection</h3>
+    <div id="no-selection">Click an entity to select it</div>
+    <div id="sel-props" style="display:none">
+      <div class="prop-row">
+        <label>Type</label>
+        <span id="sel-type" style="font-size:12px;color:#a0c0e0"></span>
+      </div>
+      <div class="prop-row">
+        <label>X</label>
+        <input class="prop-input" id="sel-x" type="number" step="1">
+      </div>
+      <div class="prop-row">
+        <label>Y</label>
+        <input class="prop-input" id="sel-y" type="number" step="1">
+      </div>
+
+      <!-- Platform controls -->
+      <div id="plat-props" class="prop-section" style="display:none">
+        <div class="prop-row" style="margin-bottom:4px">
+          <label>Axis</label>
+          <button class="prop-toggle" id="plat-axis">X</button>
+        </div>
+        <div class="prop-row">
+          <label>Range (px)</label>
+          <input class="prop-input" id="plat-range" type="number" value="100" min="20" max="400" step="10">
+        </div>
+        <div class="prop-row">
+          <label>Speed</label>
+          <input class="prop-input" id="plat-speed" type="number" value="1.5" min="0.2" max="6" step="0.1">
+        </div>
+      </div>
+
+      <!-- Portal controls -->
+      <div id="portal-props" class="prop-section" style="display:none">
+        <div class="prop-row">
+          <label>Pair</label>
+          <span id="portal-pair" style="font-size:12px;color:#ce93d8;font-weight:bold"></span>
+        </div>
+        <div class="prop-row">
+          <label>Role</label>
+          <span id="portal-role" style="font-size:12px;color:#ff80ab"></span>
+        </div>
+      </div>
+
+      <!-- GravFlip placement hint -->
+      <div id="gravflip-props" class="prop-section" style="display:none">
+        <div style="font-size:11px;color:#9090b0;line-height:1.5">
+          Y=338 → floor trigger<br>Y=0 → ceiling trigger
+        </div>
+      </div>
+
+      <button id="del-btn">🗑 Delete</button>
+
+      <!-- Sprite upload for this entity type -->
+      <div class="prop-section" id="sprite-section">
+        <div style="font-size:10px;color:#9090b0;margin-bottom:4px">Sprite (overrides all of this type)</div>
+        <div class="sprite-upload-row">
+          <div class="sprite-preview" id="sprite-preview"><span style="font-size:8px;color:#505070">none</span></div>
+          <button class="img-btn" id="sprite-upload-btn">Upload PNG</button>
+          <button class="img-clear" id="sprite-clear-btn">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div id="status">
+  <span>Cursor: <span id="st-xy">0, 0</span></span>
+  <span>Entities: <span id="st-count">0</span></span>
+  <span>Scroll: <span id="st-scroll">0</span></span>
+  <span style="margin-left:auto;color:#505070">Click palette to place · Right-click/Esc = cancel · Delete = remove</span>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+<input type="file" id="sprite-file-input" accept="image/png,image/*" style="display:none">
+
+<script>
+'use strict';
+
+// =============================================
+//  CONSTANTS (matching game exactly)
+// =============================================
+const W = 800, H = 450;
+const GROUND_Y = H - 96;   // 354
+const S_SIZE   = 32;
+const BLK_SIZE = 32;
+const C_SIZE   = 24;
+const P_SIZE   = 32;
+
+// Level theme colours (matched from game)
+const LEVEL_THEMES = [
+  { id:1, skyColors:['#081508','#152515','#233823'],
+    stoneTop:'#828282', stoneMid:'#707070', stoneBot:'#424242', stoneGrid:'rgba(0,0,0,0.22)',
+    groundTop:'#388e3c', groundMid:'#4caf50', groundBot:'#2e7d32', groundBlade:'#66bb6a',
+    starColor:'rgba(200,255,200,0.55)', accentColor:'#66bb6a' },
+  { id:2, skyColors:['#020612','#050d20','#071028'],
+    stoneTop:'#1a237e', stoneMid:'#151b6e', stoneBot:'#0d1242', stoneGrid:'rgba(0,229,255,0.15)',
+    groundTop:'#00bcd4', groundMid:'#0097a7', groundBot:'#006064', groundBlade:'#00e5ff',
+    starColor:'rgba(0,229,255,0.70)', accentColor:'#00e5ff' },
+  { id:3, skyColors:['#0a0005','#1a000a','#2a0010'],
+    stoneTop:'#4a148c', stoneMid:'#38006b', stoneBot:'#1a0035', stoneGrid:'rgba(255,82,82,0.18)',
+    groundTop:'#b71c1c', groundMid:'#c62828', groundBot:'#7f0000', groundBlade:'#ff5252',
+    starColor:'rgba(255,120,100,0.60)', accentColor:'#ff5252' },
+  { id:4, skyColors:['#0e0a02','#1c1505','#2e2208'],
+    stoneTop:'#5d4037', stoneMid:'#4e342e', stoneBot:'#3e2723', stoneGrid:'rgba(0,0,0,0.30)',
+    groundTop:'#558b2f', groundMid:'#689f38', groundBot:'#33691e', groundBlade:'#8bc34a',
+    starColor:'rgba(255,220,130,0.45)', accentColor:'#ffca28' },
+  { id:5, skyColors:['#c5e8f7','#d6effc','#eaf6ff'],
+    stoneTop:'#e8d5a3', stoneMid:'#d4b483', stoneBot:'#bf8f3b', stoneGrid:'rgba(255,255,255,0.40)',
+    groundTop:'#ffffff', groundMid:'#e3f2fd', groundBot:'#bbdefb', groundBlade:'#fff9c4',
+    starColor:'rgba(255,215,0,0.80)', accentColor:'#FFD700' },
+];
+
+// Entity defaults
+const ENTITY_DEFAULTS = {
+  spike:     { w:32, h:32 },
+  ceilspike: { w:32, h:32 },
+  block:     { w:32, h:32 },
+  platform:  { w:96, h:16, moveAxis:'x', moveRange:100, moveSpeed:1.5 },
+  portal:    { w:36, h:54 },
+  gravflip:  { w:64, h:16 },
+  ghostball: { r:14 },
+  coin:      { w:24, h:24 },
+  ceiling:   { w:256, h:8 },
+};
+
+// =============================================
+//  STATE
+// =============================================
+let entities   = [];    // all placed entities
+let selected   = null;  // selected entity ref
+let placing    = null;  // active placement type ('spike', 'ceilspike', etc.)
+let snapOn     = true;
+let scrollX    = 0;     // world pixels scrolled from left (horizontal)
+let levelId    = 1;
+let levelLen   = 9000;
+let gFrame     = 0;
+let nextPortalPair = 'A';
+let pendingPortalIn = null;  // waiting for portal-out to pair with
+
+// Image uploads (base64 strings, keyed by slot name)
+let levelImages = { sky:'', ground:'', parallax1:'', parallax2:'' };
+// Sprite uploads (base64 strings, keyed by entity type)
+let levelSprites = {};
+// Loaded Image objects for canvas preview rendering
+let previewImgCache = {};
+let currentImgSlot = null;  // which slot is currently being uploaded to
+let isDragging   = false;
+let dragStartMx  = 0;
+let dragStartMy  = 0;
+let dragStartEx  = 0;
+let dragStartEy  = 0;
+let mouseWX      = 0;
+let mouseWY      = 0;
+let canvasX      = 0;  // mouse in canvas coords
+let canvasY      = 0;
+
+// Pan state (middle-click or space+drag)
+let isPanning    = false;
+let panStartMx   = 0;
+let panStartScroll  = 0;
+let spaceDown    = false;
+
+// =============================================
+//  DOM
+// =============================================
+const canvas    = document.getElementById('bcanvas');
+const ctx       = canvas.getContext('2d');
+const wrap      = document.getElementById('canvas-wrap');
+const snapBtn   = document.getElementById('snap-btn');
+const tbName    = document.getElementById('tb-name');
+const tbId      = document.getElementById('tb-id');
+const tbLength  = document.getElementById('tb-length');
+const toast     = document.getElementById('toast');
+
+// Physics sliders
+const phSpeed   = document.getElementById('ph-speed');
+const phJump    = document.getElementById('ph-jump');
+const phGrav    = document.getElementById('ph-grav');
+const phJumps   = document.getElementById('ph-jumps');
+const phSpeedVal = document.getElementById('ph-speed-val');
+const phJumpVal  = document.getElementById('ph-jump-val');
+const phGravVal  = document.getElementById('ph-grav-val');
+const phJumpsVal = document.getElementById('ph-jumps-val');
+
+// Sprite upload elements
+const spriteSection    = document.getElementById('sprite-section');
+const spritePreview    = document.getElementById('sprite-preview');
+const spriteUploadBtn  = document.getElementById('sprite-upload-btn');
+const spriteClearBtn   = document.getElementById('sprite-clear-btn');
+const spriteFileInput  = document.getElementById('sprite-file-input');
+
+// Selection props
+const noSel     = document.getElementById('no-selection');
+const selProps  = document.getElementById('sel-props');
+const selType   = document.getElementById('sel-type');
+const selX      = document.getElementById('sel-x');
+const selY      = document.getElementById('sel-y');
+const platProps = document.getElementById('plat-props');
+const platAxis  = document.getElementById('plat-axis');
+const platRange = document.getElementById('plat-range');
+const platSpeed = document.getElementById('plat-speed');
+const portalProps = document.getElementById('portal-props');
+const portalPair  = document.getElementById('portal-pair');
+const portalRole  = document.getElementById('portal-role');
+const gravflipProps = document.getElementById('gravflip-props');
+const delBtn    = document.getElementById('del-btn');
+
+// =============================================
+//  CANVAS RESIZE
+// =============================================
+function resizeCanvas() {
+  const rect = wrap.getBoundingClientRect();
+  canvas.width  = rect.width;
+  canvas.height = rect.height;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// =============================================
+//  HELPERS
+// =============================================
+function snap(v) {
+  return snapOn ? Math.round(v / 32) * 32 : Math.round(v);
+}
+
+function worldToCanvas(wx, wy) {
+  return { x: wx - scrollX, y: wy };
+}
+
+function canvasToWorld(cx, cy) {
+  return { wx: cx + scrollX, wy: cy };
+}
+
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y, x+w,y+r, r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h, x+w-r,y+h, r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h, x,y+h-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x,y, x+r,y, r);
+  ctx.closePath();
+}
+
+function showToast(msg, duration=2000) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+function srng(seed) {
+  seed = ((seed * 1664525 + 1013904223) & 0xffffffff) >>> 0;
+  return seed / 4294967296;
+}
+
+// =============================================
+//  ENTITY FACTORY
+// =============================================
+function makeEntity(type, wx, wy) {
+  const d = ENTITY_DEFAULTS[type] || {};
+  const ent = { type, wx, wy, ...d, _id: Math.random().toString(36).slice(2) };
+
+  if (type === 'platform') {
+    ent.moveAxis  = 'x';
+    ent.moveRange = 100;
+    ent.moveSpeed = 1.5;
+  }
+
+  if (type === 'portal') {
+    // actual type is 'portal', role is stored separately
+    // This shouldn't be called directly — use addPortal()
+  }
+
+  return ent;
+}
+
+function addPortal(role, wx, wy) {
+  // If placing IN portal, start a new pair
+  if (role === 'entrance') {
+    pendingPortalIn = null;
+    const ent = {
+      type:'portal', wx, wy, w:36, h:54,
+      portalId: nextPortalPair,
+      portalRole: 'entrance',
+      _id: Math.random().toString(36).slice(2)
+    };
+    entities.push(ent);
+    pendingPortalIn = ent;
+    showToast(`Portal IN placed — now click to place the matching Portal OUT`);
+    return ent;
+  } else {
+    // OUT — pair with the pending IN
+    const pairId = pendingPortalIn ? pendingPortalIn.portalId : nextPortalPair;
+    const ent = {
+      type:'portal', wx, wy, w:36, h:54,
+      portalId: pairId,
+      portalRole: 'exit',
+      _id: Math.random().toString(36).slice(2)
+    };
+    entities.push(ent);
+    pendingPortalIn = null;
+    // Advance pair letter
+    nextPortalPair = String.fromCharCode(nextPortalPair.charCodeAt(0) + 1);
+    if (nextPortalPair > 'Z') nextPortalPair = 'A';
+    showToast(`Portal OUT placed (Pair ${pairId}) — pair complete!`);
+    return ent;
+  }
+}
+
+// =============================================
+//  HIT TESTING
+// =============================================
+function entityAt(wx, wy) {
+  // Return topmost entity that contains point (check in reverse order)
+  for (let i = entities.length - 1; i >= 0; i--) {
+    const e = entities[i];
+    if (hitEntity(e, wx, wy)) return e;
+  }
+  return null;
+}
+
+function hitEntity(e, wx, wy) {
+  const margin = 4;
+  if (e.type === 'ghostball') {
+    const r = (e.r || 14) + margin;
+    return Math.hypot(wx - e.wx, wy - e.wy) <= r;
+  }
+  const ew = e.type === 'block' ? BLK_SIZE : (e.w || 32);
+  const eh = e.type === 'block' ? BLK_SIZE : (e.type === 'ceiling' ? 12 : (e.h || 32));
+  return wx >= e.wx - margin && wx <= e.wx + ew + margin &&
+         wy >= e.wy - margin && wy <= e.wy + eh + margin;
+}
+
+// =============================================
+//  SNAPPING HELPERS
+// =============================================
+function hasBlockAt(wx, wy) {
+  return entities.some(e => e.type === 'block' && Math.abs(e.wx - wx) < 4 && Math.abs(e.wy - wy) < 4);
+}
+
+function findNearestBlockSurface(sx, cursorWY, side) {
+  // Find block top or bottom surface within 28px of cursor Y
+  const SNAP_RADIUS = 28;
+  let best = null, bestDist = SNAP_RADIUS;
+  for (const e of entities) {
+    if (e.type !== 'block') continue;
+    const ew = e.w || 32;
+    if (sx + S_SIZE <= e.wx || sx >= e.wx + ew) continue;  // no X overlap
+    const surfY = side === 'top' ? e.wy : e.wy + BLK_SIZE;
+    const dist = Math.abs(cursorWY - surfY);
+    if (dist < bestDist) { bestDist = dist; best = surfY; }
+  }
+  return best;
+}
+
+function snapEntity(type, wx, wy) {
+  // Apply smart snapping based on entity type
+  let sx = snap(wx), sy = snap(wy);
+  if (type === 'spike') {
+    sx = snap(wx);
+    // Snap to block top if cursor is near one, otherwise free 32px snap
+    const blockSurf = findNearestBlockSurface(sx, wy, 'top');
+    sy = blockSurf !== null ? blockSurf - S_SIZE : Math.min(snap(wy), GROUND_Y - S_SIZE);
+  } else if (type === 'ceilspike') {
+    sx = snap(wx);
+    // Snap to block bottom if cursor is near one, otherwise free 32px snap
+    const blockSurf = findNearestBlockSurface(sx, wy, 'bottom');
+    sy = blockSurf !== null ? blockSurf : Math.max(snap(wy), 0);
+  } else if (type === 'block') {
+    sx = snap(wx);
+    sy = Math.min(snap(wy), GROUND_Y - BLK_SIZE);  // can't place below ground
+  } else if (type === 'gravflip') {
+    sx = snap(wx);
+    // Snap to floor or ceiling
+    sy = wy < H / 2 ? 0 : GROUND_Y - 16;
+  } else if (type === 'ghostball') {
+    sx = snap(wx); sy = snap(wy);
+  } else if (type === 'ceiling') {
+    sx = snap(wx);
+    sy = Math.max(0, Math.min(snap(wy), GROUND_Y - 32));
+  } else if (type === 'coin') {
+    sx = snap(wx); sy = snap(wy);
+  } else if (type === 'platform') {
+    sx = snap(wx); sy = snap(wy);
+  } else if (type === 'portal') {
+    sx = snap(wx); sy = snap(wy);
+  } else if (type === 'block') {
+    sx = snap(wx); sy = snap(wy);
+  }
+  // Universal: no entity can be placed below ground surface
+  // (blocks and ceilings handled separately above)
+  if (type !== 'block' && type !== 'ceiling') {
+    const maxWY = type === 'coin' ? GROUND_Y - C_SIZE
+                : type === 'ghostball' ? GROUND_Y - (14*2)
+                : type === 'platform' ? GROUND_Y - 16
+                : GROUND_Y - 32;
+    sy = Math.min(sy, maxWY);
+    sy = Math.max(sy, 0);
+  }
+  return { wx: sx, wy: sy };
+}
+
+// =============================================
+//  SELECTION UI
+// =============================================
+function setSelected(ent) {
+  selected = ent;
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  if (!selected) {
+    noSel.style.display = '';
+    selProps.style.display = 'none';
+    return;
+  }
+  noSel.style.display = 'none';
+  selProps.style.display = '';
+
+  // Type label
+  const labels = {
+    spike:'Floor Spike', ceilspike:'Ceil Spike', block:'Solid Block',
+    platform:'Platform', portal:'Portal', gravflip:'Grav Flip',
+    ghostball:'Ghost Ball', coin:'Emerald', ceiling:'Ceiling Line'
+  };
+  selType.textContent = labels[selected.type] || selected.type;
+
+  selX.value = Math.round(selected.wx);
+  selY.value = Math.round(selected.wy);
+
+  // Show/hide sub-panels
+  platProps.style.display    = selected.type === 'platform' ? '' : 'none';
+  portalProps.style.display  = selected.type === 'portal'   ? '' : 'none';
+  gravflipProps.style.display = selected.type === 'gravflip' ? '' : 'none';
+
+  if (selected.type === 'platform') {
+    platAxis.textContent  = (selected.moveAxis || 'x').toUpperCase();
+    platAxis.classList.toggle('on', selected.moveAxis === 'y');
+    platRange.value = selected.moveRange || 100;
+    platSpeed.value = selected.moveSpeed || 1.5;
+  }
+  if (selected.type === 'portal') {
+    portalPair.textContent = `Pair ${selected.portalId}`;
+    portalRole.textContent = selected.portalRole === 'entrance' ? 'IN' : 'OUT';
+  }
+  updateSpritePreviewUI();
+}
+
+// =============================================
+//  DRAW — BACKGROUND & GROUND
+// =============================================
+function drawBackground(ld) {
+  // Sky — uploaded image takes priority
+  const skyImg = previewImgCache['sky'];
+  if (skyImg && skyImg.complete && skyImg.naturalWidth > 0) {
+    ctx.drawImage(skyImg, 0, 0, canvas.width, GROUND_Y);
+  } else {
+    const sky = ctx.createLinearGradient(0,0,0,GROUND_Y);
+    sky.addColorStop(0, ld.skyColors[0]);
+    sky.addColorStop(0.55, ld.skyColors[1]);
+    sky.addColorStop(1, ld.skyColors[2]);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, canvas.width, GROUND_Y);
+
+    // Stars
+    ctx.fillStyle = ld.starColor;
+    for (let i = 0; i < 40; i++) {
+      ctx.fillRect(srng(i*13)*canvas.width, srng(i*17+3)*GROUND_Y*0.55,
+                   srng(i*7+1)*1.5+0.5, srng(i*7+1)*1.5+0.5);
+    }
+  }
+
+  // Parallax layer 1 (slow scroll ~25%)
+  const p1Img = previewImgCache['parallax1'];
+  if (p1Img && p1Img.complete && p1Img.naturalWidth > 0) {
+    const p1off = (scrollX * 0.25) % p1Img.naturalWidth;
+    ctx.drawImage(p1Img, -p1off, 0, p1Img.naturalWidth, GROUND_Y);
+    if (p1off > 0) ctx.drawImage(p1Img, p1Img.naturalWidth - p1off, 0, p1Img.naturalWidth, GROUND_Y);
+  }
+
+  // Parallax layer 2 (mid scroll ~50%)
+  const p2Img = previewImgCache['parallax2'];
+  if (p2Img && p2Img.complete && p2Img.naturalWidth > 0) {
+    const p2off = (scrollX * 0.50) % p2Img.naturalWidth;
+    ctx.drawImage(p2Img, -p2off, 0, p2Img.naturalWidth, GROUND_Y);
+    if (p2off > 0) ctx.drawImage(p2Img, p2Img.naturalWidth - p2off, 0, p2Img.naturalWidth, GROUND_Y);
+  }
+}
+
+function drawGround(ld) {
+  const groundImg = previewImgCache['ground'];
+  if (groundImg && groundImg.complete && groundImg.naturalWidth > 0) {
+    // Tile or stretch ground image over the ground strip
+    const gh = canvas.height - GROUND_Y;
+    const iw = groundImg.naturalWidth || canvas.width;
+    const goff = scrollX % iw;
+    ctx.drawImage(groundImg, -goff, GROUND_Y, iw, gh);
+    if (goff > 0) ctx.drawImage(groundImg, iw - goff, GROUND_Y, iw, gh);
+  } else {
+    const sg = ctx.createLinearGradient(0, GROUND_Y, 0, canvas.height);
+    sg.addColorStop(0, ld.stoneTop);
+    sg.addColorStop(0.15, ld.stoneMid);
+    sg.addColorStop(1, ld.stoneBot);
+    ctx.fillStyle = sg;
+    ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+
+    // Grid lines
+    ctx.strokeStyle = ld.stoneGrid; ctx.lineWidth = 1;
+    const xOff = scrollX % 32;
+    for (let x = -xOff; x <= canvas.width; x += 32) {
+      ctx.beginPath(); ctx.moveTo(x, GROUND_Y); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = GROUND_Y + 32; y <= canvas.height; y += 32) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+    // Grass strip
+    ctx.fillStyle = ld.groundTop; ctx.fillRect(0, GROUND_Y-7, canvas.width, 11);
+    ctx.fillStyle = ld.groundMid; ctx.fillRect(0, GROUND_Y-11, canvas.width, 6);
+    ctx.fillStyle = ld.groundBot; ctx.fillRect(0, GROUND_Y+4, canvas.width, 4);
+    const bladeOff = scrollX % 20;
+    ctx.fillStyle = ld.groundBlade;
+    for (let x = -bladeOff; x < canvas.width + 20; x += 20) {
+      ctx.beginPath(); ctx.moveTo(x, GROUND_Y-11);
+      ctx.lineTo(x-4, GROUND_Y-18); ctx.lineTo(x+4, GROUND_Y-18);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+}
+
+function drawGrid() {
+  // Subtle 32px grid overlay in the sky area
+  ctx.save();
+  ctx.globalAlpha = 0.07;
+  ctx.strokeStyle = '#8080ff';
+  ctx.lineWidth = 1;
+  const xOff = scrollX % 32;
+  for (let x = -xOff; x <= canvas.width; x += 32) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, GROUND_Y); ctx.stroke();
+  }
+  for (let y = 0; y < GROUND_Y; y += 32) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// =============================================
+//  DRAW — ENTITIES
+// =============================================
+function drawSpike(sx, sy, ldId, inverted) {
+  const tipColors = {
+    1:['#ff8a80','#f44336','#b71c1c'],
+    2:['#e040fb','#9c27b0','#4a148c'],
+    3:['#ff6d00','#ff3d00','#bf360c'],
+    4:['#ffca28','#ff8f00','#e65100'],
+    5:['#ffffff','#e1f5fe','#81d4fa'],
+  };
+  const [c0,c1,c2] = tipColors[ldId] || tipColors[1];
+  ctx.save();
+  if (!inverted) {
+    // Floor spike: base at bottom, tip up
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.moveTo(sx+4,sy+S_SIZE+4); ctx.lineTo(sx+S_SIZE/2+4,sy+4); ctx.lineTo(sx+S_SIZE+4,sy+S_SIZE+4); ctx.fill();
+    const g = ctx.createLinearGradient(sx+S_SIZE/2,sy,sx+S_SIZE/2,sy+S_SIZE);
+    g.addColorStop(0,c0); g.addColorStop(0.5,c1); g.addColorStop(1,c2);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(sx,sy+S_SIZE); ctx.lineTo(sx+S_SIZE/2,sy); ctx.lineTo(sx+S_SIZE,sy+S_SIZE); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=c0; ctx.lineWidth=1; ctx.stroke();
+  } else {
+    // Ceiling spike: base at top, tip down
+    ctx.fillStyle = 'rgba(0,0,0,0.20)';
+    ctx.beginPath(); ctx.moveTo(sx+4,sy-4); ctx.lineTo(sx+S_SIZE+4,sy-4); ctx.lineTo(sx+S_SIZE/2+4,sy+S_SIZE+4); ctx.fill();
+    const g = ctx.createLinearGradient(sx+S_SIZE/2,sy+S_SIZE,sx+S_SIZE/2,sy);
+    g.addColorStop(0,c0); g.addColorStop(0.5,c1); g.addColorStop(1,c2);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+S_SIZE,sy); ctx.lineTo(sx+S_SIZE/2,sy+S_SIZE); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=c0; ctx.lineWidth=1; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBlock(sx, sy, ld) {
+  ctx.save();
+  const bg = ctx.createLinearGradient(sx,sy,sx,sy+BLK_SIZE);
+  bg.addColorStop(0, ld.stoneTop); bg.addColorStop(0.5, ld.stoneMid); bg.addColorStop(1, ld.stoneBot);
+  ctx.fillStyle = bg; ctx.fillRect(sx,sy,BLK_SIZE,BLK_SIZE);
+  ctx.strokeStyle = ld.stoneGrid; ctx.lineWidth = 1;
+  ctx.strokeRect(sx+0.5,sy+0.5,BLK_SIZE-1,BLK_SIZE-1);
+  ctx.beginPath();
+  ctx.moveTo(sx+BLK_SIZE/2,sy); ctx.lineTo(sx+BLK_SIZE/2,sy+BLK_SIZE);
+  ctx.moveTo(sx,sy+BLK_SIZE/2); ctx.lineTo(sx+BLK_SIZE,sy+BLK_SIZE/2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(sx,sy,BLK_SIZE,3);
+  ctx.restore();
+}
+
+function drawPlatform(sx, sy, w, h) {
+  ctx.save();
+  const g = ctx.createLinearGradient(sx,sy,sx,sy+h);
+  g.addColorStop(0,'#00e5ff'); g.addColorStop(0.5,'#00bcd4'); g.addColorStop(1,'#006064');
+  ctx.shadowColor='#00e5ff'; ctx.shadowBlur=8;
+  ctx.fillStyle = g;
+  rrect(sx,sy,w,h,4); ctx.fill();
+  ctx.strokeStyle='#80deea'; ctx.lineWidth=1.5;
+  rrect(sx,sy,w,h,4); ctx.stroke();
+  // Bursts
+  const burstCount = 6;
+  const burstColors = ['#00e5ff','#26c6da','#69f0ae'];
+  for (let i = 0; i < burstCount; i++) {
+    const bx = sx + (i+0.5)*(w/burstCount);
+    const byTop = sy-5, byBot = sy+h+5;
+    const pulse = Math.sin(gFrame*0.12+i*1.1)*0.4+0.7;
+    ctx.globalAlpha = pulse * 0.8;
+    ctx.fillStyle = burstColors[i%burstColors.length];
+    ctx.shadowBlur = 0;
+    for (const by of [byTop, byBot]) {
+      ctx.beginPath();
+      for (let s = 0; s < 6; s++) {
+        const a = (s/6)*Math.PI*2;
+        const r = s%2===0?5:2;
+        if (s===0) ctx.moveTo(bx+Math.cos(a)*r, by+Math.sin(a)*r);
+        else ctx.lineTo(bx+Math.cos(a)*r, by+Math.sin(a)*r);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawPortalShape(sx, sy, pw, ph, isEntrance) {
+  const centerX = sx + pw/2, centerY = sy + ph/2;
+  const rx = pw/2, ry = ph/2;
+  const pulse = Math.sin(gFrame*0.07)*0.15+0.85;
+  ctx.save();
+  // Outer glow
+  const glow = ctx.createRadialGradient(centerX,centerY,ry*0.3,centerX,centerY,ry*1.5);
+  glow.addColorStop(0,'rgba(206,147,216,0.2)');
+  glow.addColorStop(1,'rgba(206,147,216,0)');
+  ctx.fillStyle=glow;
+  ctx.beginPath(); ctx.ellipse(centerX,centerY,rx*1.5,ry*1.5,0,0,Math.PI*2); ctx.fill();
+  // Outer ring
+  ctx.strokeStyle = isEntrance ? '#ce93d8' : '#ff80ab';
+  ctx.lineWidth = 4;
+  ctx.shadowColor = isEntrance ? '#ce93d8' : '#ff80ab'; ctx.shadowBlur=12;
+  ctx.beginPath(); ctx.ellipse(centerX,centerY,rx*pulse,ry*pulse,0,0,Math.PI*2); ctx.stroke();
+  // Inner ring
+  ctx.strokeStyle = isEntrance ? '#ab47bc' : '#e91e63';
+  ctx.lineWidth=2; ctx.shadowBlur=5;
+  ctx.beginPath(); ctx.ellipse(centerX,centerY,rx*0.65*pulse,ry*0.65*pulse,0,0,Math.PI*2); ctx.stroke();
+  // Dots
+  for (let i = 0; i < 8; i++) {
+    const angle = (i/8)*Math.PI*2+gFrame*0.04;
+    const dx=centerX+Math.cos(angle)*rx*1.15, dy=centerY+Math.sin(angle)*ry*1.15;
+    ctx.globalAlpha=0.8;
+    ctx.fillStyle = i%2===0?'#ce93d8':'#ff4081';
+    ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(dx,dy,3,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,255,255,0.8)';
+  ctx.font='bold 9px "Arial Black",Arial'; ctx.textAlign='center';
+  ctx.fillText(isEntrance?'IN':'OUT', centerX, sy+ph+13);
+  ctx.restore();
+}
+
+function drawGravFlip(sx, sy, gw, gh) {
+  const isOnCeiling = sy < H/2;
+  const pulse = Math.sin(gFrame*0.10)*0.3+0.8;
+  ctx.save();
+  const g = ctx.createLinearGradient(sx,sy,sx+gw,sy);
+  g.addColorStop(0,'#26c6da'); g.addColorStop(0.5,'#00e5ff'); g.addColorStop(1,'#26c6da');
+  ctx.shadowColor='#00e5ff'; ctx.shadowBlur=14*pulse;
+  ctx.fillStyle=g; rrect(sx,sy,gw,gh,4); ctx.fill();
+  ctx.strokeStyle='#e0f7fa'; ctx.lineWidth=1.5;
+  rrect(sx,sy,gw,gh,4); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.font='bold 12px Arial'; ctx.textAlign='center';
+  ctx.shadowBlur=0;
+  ctx.fillText(isOnCeiling?'▼':'▲', sx+gw/2, sy+gh/2+4);
+  // Bursts
+  for (let i = 0; i < 4; i++) {
+    const bx = sx+(i+0.5)*(gw/4);
+    const burstY = isOnCeiling ? sy+gh+7 : sy-7;
+    const bp = Math.sin(gFrame*0.14+i*1.3)*0.4+0.7;
+    ctx.globalAlpha=bp*0.85;
+    ctx.fillStyle='#69f0ae';
+    ctx.beginPath();
+    for (let s=0;s<6;s++){
+      const a=(s/6)*Math.PI*2+gFrame*0.03;
+      const r=s%2===0?5:2;
+      if(s===0) ctx.moveTo(bx+Math.cos(a)*r,burstY+Math.sin(a)*r);
+      else ctx.lineTo(bx+Math.cos(a)*r,burstY+Math.sin(a)*r);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function drawGhostBall(sx, sy, r) {
+  const pulse = Math.sin(gFrame*0.15)*0.18+1.0;
+  ctx.save();
+  // Glow
+  const glow = ctx.createRadialGradient(sx,sy,0,sx,sy,r*2.5);
+  glow.addColorStop(0,'rgba(255,220,50,0.25)');
+  glow.addColorStop(0.5,'rgba(255,160,0,0.10)');
+  glow.addColorStop(1,'rgba(200,100,0,0)');
+  ctx.fillStyle=glow;
+  ctx.beginPath(); ctx.arc(sx,sy,r*2.5,0,Math.PI*2); ctx.fill();
+  // Lightning arms
+  ctx.lineWidth=1.5; ctx.lineCap='round';
+  for (let i=0;i<6;i++){
+    const baseAngle=(i/6)*Math.PI*2+gFrame*0.04;
+    const boltLen=r*(1.4+Math.sin(gFrame*0.2+i*1.7)*0.4)*pulse;
+    ctx.strokeStyle=i%2===0?'rgba(255,240,120,0.95)':'rgba(255,255,200,0.80)';
+    ctx.shadowColor='#FFD700'; ctx.shadowBlur=8;
+    ctx.beginPath();
+    let bx=sx,by=sy;
+    for (let seg=0;seg<3;seg++){
+      const segFrac=(seg+1)/3;
+      const jitter=Math.sin(gFrame*0.3+i*2.1+seg*3.7)*r*0.35;
+      const perpA=baseAngle+Math.PI/2;
+      const nx=sx+Math.cos(baseAngle)*boltLen*segFrac+Math.cos(perpA)*jitter;
+      const ny=sy+Math.sin(baseAngle)*boltLen*segFrac+Math.sin(perpA)*jitter;
+      if(seg===0) ctx.moveTo(bx,by);
+      ctx.lineTo(nx,ny);
+      bx=nx;by=ny;
+    }
+    ctx.stroke();
+  }
+  // Core
+  const cg=ctx.createRadialGradient(sx-r*0.25,sy-r*0.25,r*0.05,sx,sy,r*pulse);
+  cg.addColorStop(0,'#ffffff'); cg.addColorStop(0.3,'#fff9c4');
+  cg.addColorStop(0.7,'#FFD700'); cg.addColorStop(1,'#e65100');
+  ctx.fillStyle=cg; ctx.shadowColor='#FFD700'; ctx.shadowBlur=14;
+  ctx.beginPath(); ctx.arc(sx,sy,r*pulse,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=`rgba(255,255,255,${0.55+Math.sin(gFrame*0.22)*0.25})`;
+  ctx.beginPath(); ctx.arc(sx-r*0.2,sy-r*0.2,r*0.3,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawEmerald(sx, sy) {
+  const bob = Math.sin(gFrame*0.08)*2;
+  const ex=sx+C_SIZE/2, ey=sy+bob+C_SIZE/2;
+  const gw=C_SIZE*0.48, gh=C_SIZE*0.54;
+  ctx.save();
+  ctx.shadowColor='#00e676'; ctx.shadowBlur=8;
+  const eg=ctx.createLinearGradient(ex-gw,ey-gh,ex+gw,ey+gh);
+  eg.addColorStop(0,'#b9f6ca'); eg.addColorStop(0.3,'#00e676');
+  eg.addColorStop(0.7,'#00c853'); eg.addColorStop(1,'#1b5e20');
+  ctx.fillStyle=eg;
+  ctx.beginPath();
+  ctx.moveTo(ex,ey-gh); ctx.lineTo(ex+gw,ey-gh*0.2);
+  ctx.lineTo(ex+gw,ey+gh*0.2); ctx.lineTo(ex,ey+gh);
+  ctx.lineTo(ex-gw,ey+gh*0.2); ctx.lineTo(ex-gw,ey-gh*0.2);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(ex,ey-gh); ctx.lineTo(ex+gw*0.6,ey-gh*0.15);
+  ctx.lineTo(ex,ey-gh*0.1); ctx.lineTo(ex-gw*0.3,ey-gh*0.5);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawEntity(e, isSelected) {
+  const sx = e.wx - scrollX;
+  const sy = e.wy;
+
+  // Frustum cull
+  const ew = e.w||32, eh = e.h||32;
+  if (sx+ew < -10 || sx > canvas.width+10) return;
+
+  const ld = LEVEL_THEMES[levelId-1];
+
+  // Check for custom sprite
+  const spriteKey = 'sprite_' + e.type;
+  const spriteImg = previewImgCache[spriteKey];
+  const hasSpriteImg = spriteImg && spriteImg.complete && spriteImg.naturalWidth > 0;
+
+  if (hasSpriteImg) {
+    ctx.save();
+    // For ghostball, center on position; for everything else, draw from top-left
+    if (e.type === 'ghostball') {
+      const r = e.r || 14;
+      ctx.drawImage(spriteImg, sx - r, sy - r, r*2, r*2);
+    } else {
+      const dw = e.type === 'platform' ? (e.w||96) : (e.type === 'coin' ? C_SIZE : ew);
+      const dh = e.type === 'platform' ? (e.h||16) : (e.type === 'coin' ? C_SIZE : (e.type === 'ceiling' ? 8 : eh));
+      ctx.drawImage(spriteImg, sx, sy, dw, dh);
+    }
+    ctx.restore();
+  } else {
+    if (e.type === 'spike')     drawSpike(sx, sy, levelId, false);
+    if (e.type === 'ceilspike') drawSpike(sx, sy, levelId, true);
+    if (e.type === 'block')     drawBlock(sx, sy, ld);
+    if (e.type === 'platform')  drawPlatform(sx, sy, e.w||96, e.h||16);
+    if (e.type === 'portal')    drawPortalShape(sx, sy, e.w||36, e.h||54, e.portalRole==='entrance');
+    if (e.type === 'gravflip')  drawGravFlip(sx, sy, e.w||64, e.h||16);
+    if (e.type === 'ghostball') drawGhostBall(sx, sy, e.r||14);
+    if (e.type === 'coin')      drawEmerald(sx, sy);
+    if (e.type === 'ceiling')   drawCeiling(sx, sy, e.w||256);
+  }
+
+  // Selection outline
+  if (isSelected) {
+    ctx.save();
+    ctx.strokeStyle='#FFD700';
+    ctx.lineWidth=2.5;
+    ctx.shadowColor='#FFD700'; ctx.shadowBlur=8;
+    if (e.type === 'ghostball') {
+      const r = (e.r||14)+6;
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI*2); ctx.stroke();
+    } else {
+      const pw = e.w||32, ph = e.h||32;
+      rrect(sx-4, sy-4, pw+8, ph+8, 4); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// =============================================
+//  DRAW — CEILING LINE
+// =============================================
+function drawCeiling(sx, sy, w) {
+  ctx.save();
+  const cg = ctx.createLinearGradient(sx, sy, sx, sy + 8);
+  cg.addColorStop(0, '#90a4ae');
+  cg.addColorStop(1, '#455a64');
+  ctx.fillStyle = cg;
+  ctx.fillRect(sx, sy, w, 8);
+  // Cyan top-edge glow
+  ctx.strokeStyle = 'rgba(0,229,255,0.75)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + w, sy); ctx.stroke();
+  // Hatch marks below
+  ctx.strokeStyle = 'rgba(0,229,255,0.30)';
+  ctx.lineWidth = 1;
+  for (let hx = sx + 4; hx < sx + w; hx += 12) {
+    ctx.beginPath(); ctx.moveTo(hx, sy + 8); ctx.lineTo(hx - 8, sy + 20); ctx.stroke();
+  }
+  // End-cap handles
+  ctx.fillStyle = '#00e5ff';
+  ctx.fillRect(sx - 3, sy, 6, 8);
+  ctx.fillRect(sx + w - 3, sy, 6, 8);
+  ctx.restore();
+}
+
+// =============================================
+//  DRAW PLACEMENT GHOST
+// =============================================
+function drawGhost(type, wx, wy) {
+  const snapPos = snapEntity(type === 'portal-in' || type === 'portal-out' ? 'portal' : type, wx, wy);
+  const sx = snapPos.wx - scrollX, sy = snapPos.wy;
+  const ld = LEVEL_THEMES[levelId-1];
+  ctx.save();
+  ctx.globalAlpha = 0.45;
+  if (type === 'spike')     drawSpike(sx, sy, levelId, false);
+  if (type === 'ceilspike') drawSpike(sx, sy, levelId, true);
+  if (type === 'block')     drawBlock(sx, sy, ld);
+  if (type === 'platform')  drawPlatform(sx, sy, 96, 16);
+  if (type === 'portal-in' || type === 'portal-out') drawPortalShape(sx, sy, 36, 54, type==='portal-in');
+  if (type === 'gravflip')  drawGravFlip(sx, sy, 64, 16);
+  if (type === 'ghostball') drawGhostBall(sx, sy, 14);
+  if (type === 'coin')      drawEmerald(sx, sy);
+  if (type === 'ceiling')   drawCeiling(sx, sy, 256);
+  ctx.restore();
+}
+
+// =============================================
+//  DRAW — RULER / FINISH LINE
+// =============================================
+function drawRulerAndFinish() {
+  // ── START line — green pole at x=100 (player spawn) ──
+  const startSX = 100 - scrollX;
+  if (startSX > -100 && startSX < canvas.width + 100) {
+    ctx.save();
+    // Pole
+    ctx.strokeStyle = '#69f0ae'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(startSX, 0); ctx.lineTo(startSX, GROUND_Y); ctx.stroke();
+    // Small green/dark checker flag (4 rows, flag hangs right of pole)
+    const sqH = 11;
+    for (let row = 0; row < 4; row++) {
+      const y = row * sqH;
+      ctx.fillStyle = row % 2 === 0 ? '#69f0ae' : '#1b5e20';
+      ctx.fillRect(startSX, y, 16, sqH);
+      ctx.fillStyle = row % 2 === 0 ? '#1b5e20' : '#69f0ae';
+      ctx.fillRect(startSX + 16, y, 16, sqH);
+    }
+    // "START" label
+    ctx.fillStyle = '#69f0ae';
+    ctx.font = 'bold 10px "Arial Black",Arial'; ctx.textAlign = 'left';
+    ctx.fillText('START', startSX + 4, 4 * sqH + 14);
+    ctx.restore();
+  }
+
+  // ── FINISH line — checkered flag pole from ceiling to ground ──
+  const finishSX = levelLen - 320 - scrollX;
+  if (finishSX > -100 && finishSX < canvas.width + 100) {
+    ctx.save();
+    // Pole
+    ctx.strokeStyle='#FFD700'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(finishSX, 0); ctx.lineTo(finishSX, GROUND_Y); ctx.stroke();
+    // Checkered flag (7 rows × 2 cols attached to pole)
+    const sqH = 14;
+    for (let row = 0; row < 7; row++) {
+      const y = row * sqH;
+      ctx.fillStyle = row % 2 === 0 ? '#FFD700' : '#333';
+      ctx.fillRect(finishSX, y, 18, sqH);
+      ctx.fillStyle = row % 2 === 0 ? '#333' : '#FFD700';
+      ctx.fillRect(finishSX + 18, y, 18, sqH);
+    }
+    // "FINISH" label below flag
+    ctx.fillStyle='#FFD700';
+    ctx.font='bold 10px "Arial Black",Arial'; ctx.textAlign='left';
+    ctx.fillText('FINISH', finishSX + 4, 7 * sqH + 14);
+    ctx.restore();
+  }
+
+  // ── END wall — solid red line at level end ──
+  const endSX = levelLen - scrollX;
+  if (endSX > -100 && endSX < canvas.width + 100) {
+    ctx.save();
+    ctx.strokeStyle='rgba(255,82,82,0.7)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(endSX, 0); ctx.lineTo(endSX, GROUND_Y); ctx.stroke();
+    ctx.fillStyle='#ff5252';
+    ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ctx.fillText('END', endSX, 14);
+    ctx.restore();
+  }
+}
+
+// =============================================
+//  DRAW — PORTAL PAIR LINES
+// =============================================
+function drawPortalPairLines() {
+  // Group portals by portalId
+  const groups = {};
+  for (const e of entities) {
+    if (e.type !== 'portal') continue;
+    if (!groups[e.portalId]) groups[e.portalId] = {};
+    groups[e.portalId][e.portalRole] = e;
+  }
+  ctx.save();
+  ctx.setLineDash([4,4]);
+  ctx.lineWidth=1.5;
+  for (const [id, pair] of Object.entries(groups)) {
+    if (!pair.entrance || !pair.exit) continue;
+    const ax = pair.entrance.wx + 18 - scrollX;
+    const ay = pair.entrance.wy + 27;
+    const bx = pair.exit.wx + 18 - scrollX;
+    const by = pair.exit.wy + 27;
+    ctx.strokeStyle = 'rgba(206,147,216,0.6)';
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    // Label midpoint
+    const mx=(ax+bx)/2, my=(ay+by)/2;
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(206,147,216,0.9)';
+    ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ctx.fillText(id, mx, my-5);
+    ctx.setLineDash([4,4]);
+  }
+  ctx.restore();
+}
+
+// =============================================
+//  MAIN DRAW LOOP
+// =============================================
+function draw() {
+  const ld = LEVEL_THEMES[levelId-1];
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  drawBackground(ld);
+  drawGrid();
+  drawGround(ld);
+  drawRulerAndFinish();
+  drawPortalPairLines();
+
+  // Draw all entities
+  for (const e of entities) {
+    drawEntity(e, e === selected);
+  }
+
+  // Draw placement ghost
+  if (placing) {
+    drawGhost(placing, mouseWX, mouseWY);
+  }
+
+  // Status bar
+  document.getElementById('st-xy').textContent    = `${Math.round(mouseWX)}, ${Math.round(mouseWY)}`;
+  document.getElementById('st-count').textContent = entities.length;
+  document.getElementById('st-scroll').textContent= Math.round(scrollX);
+
+  gFrame++;
+  requestAnimationFrame(draw);
+}
+
+
+// =============================================
+//  INPUT — MOUSE
+// =============================================
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  canvasX = e.clientX - rect.left;
+  canvasY = e.clientY - rect.top;
+  mouseWX = canvasX + scrollX;
+  mouseWY = canvasY;
+
+  // Panning
+  if (isPanning) {
+    scrollX = Math.max(0, panStartScroll + (panStartMx - e.clientX));
+    return;
+  }
+
+  // Dragging selected entity
+  if (isDragging && selected) {
+    let nx = dragStartEx + (e.clientX - dragStartMx);
+    let ny = dragStartEy + (e.clientY - dragStartMy);
+    if (snapOn) {
+      const snp = snapEntity(selected.type, nx + scrollX, ny);
+      nx = snp.wx - scrollX;
+      ny = snp.wy;
+      selected.wx = snp.wx;
+      selected.wy = snp.wy;
+    } else {
+      selected.wx = nx + scrollX;
+      selected.wy = ny;
+    }
+    // Clamp to level bounds
+    selected.wx = Math.max(0, Math.min(selected.wx, levelLen - (selected.w||32)));
+    // Clamp to world Y bounds — no entity below ground
+    const maxEY = selected.type === 'block' ? GROUND_Y - BLK_SIZE
+                : selected.type === 'coin' ? GROUND_Y - C_SIZE
+                : selected.type === 'ghostball' ? GROUND_Y - 28
+                : selected.type === 'platform' ? GROUND_Y - 16
+                : selected.type === 'ceiling' ? GROUND_Y - 32
+                : GROUND_Y - 32;
+    selected.wy = Math.max(0, Math.min(selected.wy, maxEY));
+    updateSelectionUI();
+  }
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 1 || (e.button === 0 && spaceDown)) {
+    // Middle click or space+click = pan both axes
+    isPanning    = true;
+    panStartMx   = e.clientX;
+    panStartScroll = scrollX;
+    e.preventDefault();
+    return;
+  }
+
+  if (e.button === 2) {
+    // Right-click = cancel placement
+    cancelPlacement();
+    return;
+  }
+
+  if (e.button !== 0) return;
+
+  if (placing) {
+    // Place entity
+    const type = placing;
+    const realType = type === 'portal-in' || type === 'portal-out' ? 'portal' : type;
+    const snp = snapEntity(realType, mouseWX, mouseWY);
+
+    if (type === 'portal-in' || type === 'portal-out') {
+      const role = type === 'portal-in' ? 'entrance' : 'exit';
+      const ent = addPortal(role, snp.wx, snp.wy);
+      setSelected(ent);
+      // After placing portal-in, auto-switch to portal-out
+      if (type === 'portal-in') {
+        setPlacing('portal-out');
+      } else {
+        setPlacing(null);
+      }
+    } else {
+      const ent = makeEntity(realType, snp.wx, snp.wy);
+      if (realType === 'block' && hasBlockAt(snp.wx, snp.wy)) {
+        // skip duplicate block
+      } else {
+        entities.push(ent);
+        setSelected(ent);
+      }
+      // All entity types stay in placement mode — click palette button or press Esc to exit
+    }
+    return;
+  }
+
+  // Try to select entity
+  const hit = entityAt(mouseWX, mouseWY);
+  if (hit) {
+    setSelected(hit);
+    isDragging    = true;
+    dragStartMx   = e.clientX;
+    dragStartMy   = e.clientY;
+    dragStartEx   = hit.wx - scrollX;
+    dragStartEy   = hit.wy;
+  } else {
+    setSelected(null);
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (e.button === 1) { isPanning = false; return; }
+  if (isDragging && selected) {
+    // Final snap on release
+    if (snapOn) {
+      const snp = snapEntity(selected.type, selected.wx, selected.wy);
+      selected.wx = snp.wx; selected.wy = snp.wy;
+    }
+    updateSelectionUI();
+  }
+  isDragging = false;
+  if (isPanning && e.button === 0 && spaceDown) isPanning = false;
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// Scroll to pan
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  scrollX = Math.max(0, Math.min(scrollX + e.deltaY * 2, levelLen - 400));
+}, { passive:false });
+
+// =============================================
+//  INPUT — KEYBOARD
+// =============================================
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { spaceDown = true; e.preventDefault(); }
+  if (e.code === 'Escape') cancelPlacement();
+  if ((e.code === 'Delete' || e.code === 'Backspace') && selected) {
+    deleteSelected();
+  }
+  if (e.code === 'ArrowLeft')  scrollX = Math.max(0, scrollX - 64);
+  if (e.code === 'ArrowRight') scrollX = Math.min(levelLen - 400, scrollX + 64);
+  if (e.code === 'KeyG') toggleSnap();
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'Space') spaceDown = false;
+});
+
+// =============================================
+//  PLACEMENT MODE
+// =============================================
+function setPlacing(type) {
+  placing = type;
+  // Update palette button highlights
+  document.querySelectorAll('.pal-btn').forEach(btn => {
+    const t = btn.dataset.type;
+    // portal-out placement mode highlights the portal-in button (it's the same workflow)
+    const active = (type === t) ||
+      (type === 'portal-out' && t === 'portal-in');
+    btn.classList.toggle('active', active);
+  });
+  canvas.style.cursor = type ? 'crosshair' : 'default';
+}
+
+function cancelPlacement() {
+  setPlacing(null);
+  pendingPortalIn = null;
+}
+
+// =============================================
+//  DELETE
+// =============================================
+function deleteSelected() {
+  if (!selected) return;
+  const idx = entities.indexOf(selected);
+  if (idx !== -1) entities.splice(idx, 1);
+  setSelected(null);
+}
+
+// =============================================
+//  TOGGLE SNAP
+// =============================================
+function toggleSnap() {
+  snapOn = !snapOn;
+  snapBtn.textContent = snapOn ? '📐 Snap ON' : '📐 Snap OFF';
+  snapBtn.style.background = snapOn ? '' : '#3a1e1e';
+}
+
+// =============================================
+//  PALETTE BUTTON CLICKS
+// =============================================
+document.querySelectorAll('.pal-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.type;
+    if (placing === t) { cancelPlacement(); }
+    else { setPlacing(t); setSelected(null); }
+  });
+});
+
+// =============================================
+//  TOOLBAR EVENTS
+// =============================================
+snapBtn.addEventListener('click', toggleSnap);
+
+tbLength.addEventListener('change', () => {
+  levelLen = Math.max(2000, Math.min(15000, parseInt(tbLength.value) || 9000));
+  tbLength.value = levelLen;
+});
+
+tbId.addEventListener('change', () => {
+  levelId = parseInt(tbId.value);
+});
+
+// =============================================
+//  SELECTION PROPERTY INPUTS
+// =============================================
+selX.addEventListener('input', () => {
+  if (!selected) return;
+  selected.wx = parseFloat(selX.value)||0;
+});
+selY.addEventListener('input', () => {
+  if (!selected) return;
+  selected.wy = parseFloat(selY.value)||0;
+});
+
+platAxis.addEventListener('click', () => {
+  if (!selected || selected.type !== 'platform') return;
+  selected.moveAxis = selected.moveAxis === 'x' ? 'y' : 'x';
+  platAxis.textContent = selected.moveAxis.toUpperCase();
+  platAxis.classList.toggle('on', selected.moveAxis === 'y');
+});
+platRange.addEventListener('input', () => {
+  if (!selected) return;
+  selected.moveRange = parseFloat(platRange.value)||100;
+});
+platSpeed.addEventListener('input', () => {
+  if (!selected) return;
+  selected.moveSpeed = parseFloat(platSpeed.value)||1.5;
+});
+
+delBtn.addEventListener('click', deleteSelected);
+
+// =============================================
+//  SAVE / LOAD JSON
+// =============================================
+function buildLevelJSON() {
+  const id = parseInt(tbId.value);
+  const ld = LEVEL_THEMES[id-1];
+  const ents = entities.map(e => {
+    const obj = { type: e.type, x: Math.round(e.wx), y: Math.round(e.wy) };
+    if (e.type === 'spike' || e.type === 'ceilspike' || e.type === 'block') {
+      obj.w = 32; obj.h = 32;
+    } else if (e.type === 'platform') {
+      obj.w = e.w||96; obj.h = e.h||16;
+      obj.moveAxis  = e.moveAxis  || 'x';
+      obj.moveRange = e.moveRange || 100;
+      obj.moveSpeed = e.moveSpeed || 1.5;
+    } else if (e.type === 'portal') {
+      obj.w = 36; obj.h = 54;
+      obj.portalId   = e.portalId;
+      obj.portalRole = e.portalRole;
+    } else if (e.type === 'gravflip') {
+      obj.w = e.w||64; obj.h = e.h||16;
+    } else if (e.type === 'ceiling') {
+      obj.w = e.w||256; obj.h = 8;
+    } else if (e.type === 'ghostball') {
+      obj.r = e.r||14;
+      delete obj.w; delete obj.h;
+    } else if (e.type === 'coin') {
+      // no extra fields
+    }
+    return obj;
+  });
+
+  return {
+    id,
+    name: tbName.value.toUpperCase() || 'MY LEVEL',
+    emoji: ['🌿','🌆','🔥','🦖','☁️'][id-1],
+    length: levelLen,
+    physics: {
+      moveSpeed: parseFloat(phSpeed.value) || 5.5,
+      jumpVel:   -(parseFloat(phJump.value) || 11.8),
+      gravity:   parseFloat(phGrav.value)  || 0.70,
+      maxJumps:  parseInt(phJumps.value)   || 1,
+    },
+    entities: ents,
+    visual: {
+      skyColors:   ld.skyColors,
+      accentColor: ld.accentColor,
+    },
+    sprites: { ...levelSprites },
+    images:  { ...levelImages },
+  };
+}
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  if (entities.length === 0) { showToast('Already empty!'); return; }
+  if (!confirm('Clear all entities? This cannot be undone.')) return;
+  entities = [];
+  selected = null;
+  pendingPortalIn = null;
+  nextPortalPair = 'A';
+  levelImages = { sky:'', ground:'', parallax1:'', parallax2:'' };
+  levelSprites = {};
+  previewImgCache = {};
+  updateAllImagePreviews();
+  updateSelectionUI();
+  showToast('Level cleared');
+});
+
+document.getElementById('save-btn').addEventListener('click', () => {
+  const json = buildLevelJSON();
+  const str  = JSON.stringify(json, null, 2);
+  const blob = new Blob([str], { type:'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const safeName = (tbName.value || 'level').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  a.href     = url;
+  a.download = `ceube-level-${safeName}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Level saved!');
+});
+
+document.getElementById('load-btn').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const json = JSON.parse(ev.target.result);
+      loadFromJSON(json);
+      showToast('Level loaded!');
+    } catch(err) {
+      showToast('Error loading JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function loadFromJSON(json) {
+  entities = [];
+  selected = null;
+  nextPortalPair = 'A';
+  pendingPortalIn = null;
+
+  tbName.value = json.name || 'MY LEVEL';
+  levelId      = json.id   || 1;
+  levelLen     = json.length || 9000;
+  tbId.value   = levelId;
+  tbLength.value = levelLen;
+
+  if (json.physics) {
+    phSpeed.value = json.physics.moveSpeed || 5.5;
+    phJump.value  = Math.abs(json.physics.jumpVel || 11.8);
+    phGrav.value  = json.physics.gravity   || 0.70;
+    phJumps.value = json.physics.maxJumps  || 1;
+  }
+
+  const usedPairs = new Set();
+  for (const e of (json.entities||[])) {
+    const ent = {
+      _id: Math.random().toString(36).slice(2),
+      type: e.type,
+      wx: e.x, wy: e.y,
+    };
+    if (e.type === 'platform') {
+      ent.w = e.w||96; ent.h = e.h||16;
+      ent.moveAxis  = e.moveAxis  || 'x';
+      ent.moveRange = e.moveRange || 100;
+      ent.moveSpeed = e.moveSpeed || 1.5;
+    } else if (e.type === 'portal') {
+      ent.w = 36; ent.h = 54;
+      ent.portalId   = e.portalId;
+      ent.portalRole = e.portalRole;
+      usedPairs.add(e.portalId);
+    } else if (e.type === 'gravflip') {
+      ent.w = e.w||64; ent.h = e.h||16;
+    } else if (e.type === 'ceiling') {
+      ent.w = e.w||256; ent.h = 8;
+    } else if (e.type === 'ghostball') {
+      ent.r = e.r||14;
+    } else {
+      ent.w = e.w||32; ent.h = e.h||32;
+    }
+    entities.push(ent);
+  }
+  // Update next portal pair letter to avoid collisions
+  for (const pid of usedPairs) {
+    const code = pid.charCodeAt(0);
+    if (code >= 65 && code <= 90) {
+      const next = String.fromCharCode(code+1);
+      if (next > nextPortalPair) nextPortalPair = next;
+    }
+  }
+  // Restore images and sprites
+  levelImages = { sky:'', ground:'', parallax1:'', parallax2:'',
+                  ...(json.images || {}) };
+  levelSprites = { ...(json.sprites || {}) };
+  previewImgCache = {};
+  updateAllImagePreviews();
+  updateSelectionUI();
+}
+
+// =============================================
+// =============================================
+document.getElementById('test-btn').addEventListener('click', () => {
+  if (entities.length === 0) {
+    showToast('Add some entities first!');
+    return;
+  }
+  const json = buildLevelJSON();
+  try {
+    localStorage.setItem('ceubeDashTestLevel', JSON.stringify(json));
+    window.open('ceube-dash-v4.0.html', '_blank');
+    showToast('Opening game in new tab…');
+  } catch(e) {
+    showToast('Error: ' + e.message);
+  }
+});
+
+// =============================================
+//  PALETTE ICONS (small canvas previews)
+// =============================================
+function drawPaletteIcons() {
+  const iconDefs = [
+    { id:'icon-spike',    fn:c=>{ const ctx2=c.getContext('2d'); drawSpikeIcon(ctx2,c.width,c.height,false); } },
+    { id:'icon-ceilspike',fn:c=>{ const ctx2=c.getContext('2d'); drawSpikeIcon(ctx2,c.width,c.height,true);  } },
+    { id:'icon-block',    fn:c=>{ const ctx2=c.getContext('2d'); drawBlockIcon(ctx2,c.width,c.height); } },
+    { id:'icon-platform', fn:c=>{ const ctx2=c.getContext('2d'); drawPlatformIcon(ctx2,c.width,c.height); } },
+    { id:'icon-portal-in',fn:c=>{ const ctx2=c.getContext('2d'); drawPortalIcon(ctx2,c.width,c.height,'IN'); } },
+
+    { id:'icon-gravflip', fn:c=>{ const ctx2=c.getContext('2d'); drawGravflipIcon(ctx2,c.width,c.height); } },
+    { id:'icon-ceiling',  fn:c=>{ const ctx2=c.getContext('2d'); drawCeilingIcon(ctx2,c.width,c.height); } },
+    { id:'icon-ghostball',fn:c=>{ const ctx2=c.getContext('2d'); drawGhostBallIcon(ctx2,c.width,c.height); } },
+    { id:'icon-coin',     fn:c=>{ const ctx2=c.getContext('2d'); drawCoinIcon(ctx2,c.width,c.height); } },
+  ];
+  for (const def of iconDefs) {
+    const container = document.getElementById(def.id);
+    if (!container) continue;
+    const c = document.createElement('canvas');
+    c.width = 28; c.height = 28;
+    container.appendChild(c);
+    def.fn(c);
+  }
+}
+
+function drawSpikeIcon(ctx2, w, h, inv) {
+  const [c0,c1] = ['#ff8a80','#f44336'];
+  if (!inv) {
+    const g=ctx2.createLinearGradient(w/2,0,w/2,h); g.addColorStop(0,c0); g.addColorStop(1,c1);
+    ctx2.fillStyle=g;
+    ctx2.beginPath(); ctx2.moveTo(0,h); ctx2.lineTo(w/2,2); ctx2.lineTo(w,h); ctx2.closePath(); ctx2.fill();
+  } else {
+    const g=ctx2.createLinearGradient(w/2,h,w/2,0); g.addColorStop(0,c0); g.addColorStop(1,c1);
+    ctx2.fillStyle=g;
+    ctx2.beginPath(); ctx2.moveTo(0,0); ctx2.lineTo(w,0); ctx2.lineTo(w/2,h-2); ctx2.closePath(); ctx2.fill();
+  }
+}
+function drawBlockIcon(ctx2, w, h) {
+  ctx2.fillStyle='#707070'; ctx2.fillRect(0,0,w,h);
+  ctx2.strokeStyle='rgba(0,0,0,0.3)'; ctx2.lineWidth=1;
+  ctx2.strokeRect(0.5,0.5,w-1,h-1);
+  ctx2.beginPath(); ctx2.moveTo(w/2,0); ctx2.lineTo(w/2,h); ctx2.moveTo(0,h/2); ctx2.lineTo(w,h/2); ctx2.stroke();
+  ctx2.fillStyle='rgba(255,255,255,0.2)'; ctx2.fillRect(0,0,w,3);
+}
+function drawPlatformIcon(ctx2, w, h) {
+  const g=ctx2.createLinearGradient(0,h/3,0,h*2/3); g.addColorStop(0,'#00e5ff'); g.addColorStop(1,'#006064');
+  ctx2.fillStyle=g; ctx2.fillRect(0,h/3,w,h/3);
+  ctx2.strokeStyle='#80deea'; ctx2.lineWidth=1; ctx2.strokeRect(0,h/3,w,h/3);
+}
+function drawPortalIcon(ctx2, w, h, label) {
+  const col = label==='IN'?'#ce93d8':'#ff80ab';
+  ctx2.strokeStyle=col; ctx2.lineWidth=3;
+  ctx2.beginPath(); ctx2.ellipse(w/2,h/2,w/2-3,h/2-3,0,0,Math.PI*2); ctx2.stroke();
+  ctx2.fillStyle=col; ctx2.font='bold 8px Arial'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
+  ctx2.fillText(label, w/2, h/2);
+}
+function drawGravflipIcon(ctx2, w, h) {
+  ctx2.fillStyle='#00e5ff'; ctx2.fillRect(2,h/2-3,w-4,6);
+  ctx2.fillStyle='#fff'; ctx2.font='bold 10px Arial'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
+  ctx2.fillText('▲', w/2, h/2);
+}
+function drawGhostBallIcon(ctx2, w, h) {
+  const r=h/2-3;
+  const cg=ctx2.createRadialGradient(w/2,h/2,1,w/2,h/2,r);
+  cg.addColorStop(0,'#ffffff'); cg.addColorStop(0.5,'#FFD700'); cg.addColorStop(1,'#e65100');
+  ctx2.fillStyle=cg;
+  ctx2.beginPath(); ctx2.arc(w/2,h/2,r,0,Math.PI*2); ctx2.fill();
+}
+function drawCeilingIcon(ctx2, w, h) {
+  ctx2.fillStyle = '#455a64'; ctx2.fillRect(1, h/2-2, w-2, 5);
+  ctx2.strokeStyle = 'rgba(0,229,255,0.9)'; ctx2.lineWidth=1.5; ctx2.setLineDash([3,2]);
+  ctx2.beginPath(); ctx2.moveTo(1,h/2-2); ctx2.lineTo(w-1,h/2-2); ctx2.stroke();
+  ctx2.setLineDash([]);
+  ctx2.fillStyle='#00e5ff'; ctx2.fillRect(1,h/2-3,4,7); ctx2.fillRect(w-5,h/2-3,4,7);
+}
+
+function drawCoinIcon(ctx2, w, h) {
+  const ex=w/2,ey=h/2,gw=w*0.4,gh=h*0.45;
+  const eg=ctx2.createLinearGradient(ex-gw,ey-gh,ex+gw,ey+gh);
+  eg.addColorStop(0,'#b9f6ca'); eg.addColorStop(0.4,'#00e676'); eg.addColorStop(1,'#1b5e20');
+  ctx2.fillStyle=eg;
+  ctx2.beginPath();
+  ctx2.moveTo(ex,ey-gh); ctx2.lineTo(ex+gw,ey-gh*0.2);
+  ctx2.lineTo(ex+gw,ey+gh*0.2); ctx2.lineTo(ex,ey+gh);
+  ctx2.lineTo(ex-gw,ey+gh*0.2); ctx2.lineTo(ex-gw,ey-gh*0.2);
+  ctx2.closePath(); ctx2.fill();
+}
+
+// =============================================
+//  PHYSICS SLIDER WIRING
+// =============================================
+function wireSlider(sliderEl, valEl, decimals) {
+  const fmt = v => decimals > 0 ? parseFloat(v).toFixed(decimals) : parseInt(v);
+  valEl.textContent = fmt(sliderEl.value);
+  sliderEl.addEventListener('input', () => {
+    valEl.textContent = fmt(sliderEl.value);
+  });
+}
+wireSlider(phSpeed, phSpeedVal, 1);
+wireSlider(phJump,  phJumpVal,  1);
+wireSlider(phGrav,  phGravVal,  2);
+wireSlider(phJumps, phJumpsVal, 0);
+
+// =============================================
+//  IMAGE UPLOADS
+// =============================================
+function triggerImgUpload(slot) {
+  currentImgSlot = slot;
+  document.getElementById('img-file-input').click();
+}
+
+function clearImg(slot) {
+  levelImages[slot] = '';
+  delete previewImgCache[slot];
+  updateImgPreview(slot, '');
+  showToast(`${slot} image cleared`);
+}
+
+function updateImgPreview(slot, base64) {
+  const el = document.getElementById(`prev-${slot}`);
+  if (!el) return;
+  if (base64) {
+    el.innerHTML = `<img src="${base64}" alt="${slot}">`;
+  } else {
+    el.innerHTML = '<span>none</span>';
+  }
+}
+
+function updateAllImagePreviews() {
+  for (const slot of ['sky','ground','parallax1','parallax2']) {
+    updateImgPreview(slot, levelImages[slot] || '');
+  }
+  // Update sprite previews in properties if entity selected
+  updateSpritePreviewUI();
+}
+
+document.getElementById('img-file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file || !currentImgSlot) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const b64 = ev.target.result;
+    levelImages[currentImgSlot] = b64;
+    // Pre-cache the Image object for canvas use
+    const img = new Image();
+    img.src = b64;
+    previewImgCache[currentImgSlot] = img;
+    updateImgPreview(currentImgSlot, b64);
+    showToast(`${currentImgSlot} image uploaded!`);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// =============================================
+//  SPRITE UPLOADS (per entity type)
+// =============================================
+function updateSpritePreviewUI() {
+  if (!selected) return;
+  const type = selected.type;
+  const b64 = levelSprites[type] || '';
+  if (b64) {
+    spritePreview.innerHTML = `<img src="${b64}" alt="sprite">`;
+  } else {
+    spritePreview.innerHTML = '<span style="font-size:8px;color:#505070">none</span>';
+  }
+}
+
+spriteUploadBtn.addEventListener('click', () => {
+  if (!selected) return;
+  spriteFileInput.click();
+});
+
+spriteClearBtn.addEventListener('click', () => {
+  if (!selected) return;
+  const type = selected.type;
+  delete levelSprites[type];
+  delete previewImgCache['sprite_' + type];
+  updateSpritePreviewUI();
+  showToast(`${type} sprite cleared`);
+});
+
+spriteFileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file || !selected) return;
+  const type = selected.type;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const b64 = ev.target.result;
+    levelSprites[type] = b64;
+    const img = new Image();
+    img.src = b64;
+    previewImgCache['sprite_' + type] = img;
+    updateSpritePreviewUI();
+    showToast(`${type} sprite uploaded! All ${type}s now use this image.`);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// =============================================
+//  START
+// =============================================
+drawPaletteIcons();
+draw();
+</script>
+</body>
+</html>
