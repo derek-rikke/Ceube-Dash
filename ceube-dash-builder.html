@@ -1769,7 +1769,7 @@ document.getElementById('test-btn').addEventListener('click', () => {
   const json = buildLevelJSON();
   try {
     localStorage.setItem('ceubeDashTestLevel', JSON.stringify(json));
-    window.open('ceube-dash-v4.0.html', '_blank');
+    window.open('index.html', '_blank');
     showToast('Opening game in new tab…');
   } catch(e) {
     showToast('Error: ' + e.message);
