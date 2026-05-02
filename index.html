@@ -91,6 +91,7 @@ function writeSave(data) {
   try { localStorage.setItem('ceubeDash', JSON.stringify(data)); } catch {}
 }
 let saveData = loadSave();
+saveData.coins = 0;  // emeralds reset each session (not persistent)
 
 // =============================================
 //  LEVEL DEFINITIONS
@@ -840,6 +841,8 @@ function handleClick(x, y) {
   }
   // ----- READY -----
   if (screen==='ready') { screen='playing'; return; }
+  // ----- PLAYING (tap to jump on touch devices) -----
+  if (screen==='playing' && !paused) { doJump(); return; }
   // ----- DEAD -----
   if (screen==='dead' && deathDelay>45) {
     // Two buttons: retry (left) | menu (right)
@@ -2157,9 +2160,7 @@ function drawNightTitleUI(fill1, fill2, fill3, outlineColor, glowColor, btnColor
   rrect(storeX,storeY,storeW,storeH,10); ctx.fill();
   ctx.strokeStyle=coinBorder; ctx.lineWidth=2; rrect(storeX,storeY,storeW,storeH,10); ctx.stroke();
   ctx.fillStyle=coinBorder; ctx.font='bold 14px "Arial Black",Arial'; ctx.textAlign='center';
-  ctx.fillText('🛒  STORE',storeX+storeW/2,storeY+24);
-  ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.font='10px Arial';
-  ctx.fillText('COMING SOON',storeX+storeW/2,storeY+46);
+  ctx.fillText('🛒  STORE',storeX+storeW/2,storeY+28);
   ctx.restore();
 }
 
