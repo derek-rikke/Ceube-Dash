@@ -91,7 +91,9 @@ function writeSave(data) {
   try { localStorage.setItem('ceubeDash', JSON.stringify(data)); } catch {}
 }
 let saveData = loadSave();
-saveData.coins = 0;  // emeralds reset each session (not persistent)
+saveData.coins = 0;                  // emeralds reset each session (not persistent)
+saveData.ownedSkins = ['default'];   // skin ownership resets each session
+saveData.equippedSkin = 'default';   // equipped skin resets each session
 
 // =============================================
 //  LEVEL DEFINITIONS
@@ -545,7 +547,7 @@ let solidBlocks = [];   // solid blocks (land on top, die from sides)
 
 // Gravity state
 let gravityFlipped = false;  // true = player runs on ceiling
-let devMode = false;         // unlocked by secret button on level select
+
 let paused  = false;         // pause menu active
 let lastDistPct = 0;         // completion % shown on win screen
 
@@ -822,13 +824,6 @@ function handleClick(x, y) {
   if (screen==='levelselect') {
     // Back button
     if (x>=20&&x<=110&&y>=14&&y<=44) { startFade('title'); return; }
-    // DEV MODE: secret unlock-all button (bottom left corner, small)
-    if (x>=8&&x<=88&&y>=H-28&&y<=H-8) {
-      saveData.unlockedLevels = 5;
-      writeSave(saveData);
-      devMode = true;
-      return;
-    }
     const id = cardAtPoint(x,y);
     if (id === 5) startFade(`level:${id}`);
     return;
@@ -2024,10 +2019,7 @@ function drawHUD() {
   ctx.fillText(`${levelDef.emoji} LVL ${currentLevel} — ${levelDef.name}`,W-14,32);
   ctx.fillStyle='rgba(255,255,255,0.28)'; ctx.font='11px Arial'; ctx.textAlign='right';
   ctx.fillText('P = pause',W-8,H-8);
-  if (devMode) {
-    ctx.fillStyle='rgba(255,200,0,0.70)'; ctx.font='bold 10px monospace'; ctx.textAlign='left';
-    ctx.fillText('DEV',14,H-8);
-  }
+
 }
 
 // =============================================
@@ -2306,16 +2298,6 @@ function drawLevelSelect() {
   ctx.fillStyle='#00e676'; ctx.font='bold 14px "Arial Black",Arial'; ctx.textAlign='right';
   ctx.fillText(`${saveData.coins}`, W-16, 33);
   drawBtn(20,14,90,30,'← BACK','rgba(0,20,50,0.80)','#00ccff',13);
-  // DEV MODE button — small, tucked in bottom left
-  ctx.save();
-  ctx.fillStyle = devMode ? 'rgba(255,200,0,0.25)' : 'rgba(255,255,255,0.06)';
-  rrect(8, H-28, 80, 20, 4); ctx.fill();
-  ctx.strokeStyle = devMode ? '#FFD700' : 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 1; rrect(8, H-28, 80, 20, 4); ctx.stroke();
-  ctx.fillStyle = devMode ? '#FFD700' : 'rgba(255,255,255,0.30)';
-  ctx.font = '10px monospace'; ctx.textAlign = 'center';
-  ctx.fillText(devMode ? '🔓 ALL UNLOCKED' : '[ dev mode ]', 48, H-14);
-  ctx.restore();
   for (const c of getLevelCards()) {
     const ld=LEVEL_DEFS[c.id-1];
     const unlocked=c.id<=saveData.unlockedLevels;
