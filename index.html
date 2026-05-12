@@ -1121,8 +1121,11 @@ function update() {
     const minV = Math.min(overlapT, overlapB);
 
     // Corner bias: only kill on side if horizontal penetration is clearly dominant.
-    // Without this, moving across adjacent block tops triggers a false side-kill.
-    const SIDE_BIAS = 3;
+    // SIDE_BIAS: vertical must exceed horizontal by this much to be treated as a side hit.
+    // Raised to 6 to prevent corner-catches when landing on block edges after gravity flips.
+    const SIDE_BIAS = 6;
+    // MIN_SIDE_OVERLAP: ignore side collision if horizontal penetration is tiny (corner graze).
+    const MIN_SIDE_OVERLAP = 4;
     if (!gravityFlipped) {
       if (minV < minH + SIDE_BIAS) {
         // Vertical collision
@@ -1140,8 +1143,8 @@ function update() {
           player.wy = bBot;
           player.vy = Math.abs(player.vy) * 0.3;
         }
-      } else {
-        // Side collision — kill player
+      } else if (minH >= MIN_SIDE_OVERLAP) {
+        // Side collision — only kill if it's a real side hit, not a corner graze
         killPlayer(); return;
       }
     } else {
@@ -1157,7 +1160,7 @@ function update() {
           player.wy = bTop - P_SIZE;
           player.vy = -Math.abs(player.vy) * 0.3;
         }
-      } else {
+      } else if (minH >= MIN_SIDE_OVERLAP) {
         killPlayer(); return;
       }
     }
