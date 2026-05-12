@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Ceube Dash v4.1</title>
+<title>Ceube Dash v4.0</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body {
@@ -72,20 +72,6 @@ let testLevelJSON = null;  // stored for retry during test play
 // Image/sprite caches (populated from JSON on load)
 let levelImgCache = {};     // key: 'sky','ground','parallax1','parallax2'
 let levelSpriteCache = {};  // key: entity type string
-
-// ── Skin images: loaded from images/ folder ──
-const SKIN_IMGS = {};
-function loadSkinImg(id, path) {
-  const img = new Image();
-  img.src = path;
-  SKIN_IMGS[id] = img;
-}
-// Add entries here as Charlie provides skin art:
-loadSkinImg('thorn', 'images/skin-thorn.png');
-// loadSkinImg('cyborg', 'images/skin-cyborg.png');
-// loadSkinImg('inferno', 'images/skin-inferno.png');
-// loadSkinImg('spino',   'images/skin-spino.png');
-// loadSkinImg('zeus',    'images/skin-zeus.png');
 
 // =============================================
 //  SAVE DATA
@@ -261,7 +247,7 @@ function loadLevelFromJSON(json) {
   function loadImgSrc(src, key, cache) {
     if (!src) return;
     const img = new Image();
-    img.src = src;  // works for both base64 data URIs and file paths
+    img.src = src;
     cache[key] = img;
   }
 
@@ -544,7 +530,7 @@ let screen       = 'title';   // 'title'|'levelselect'|'store'|'ready'|'playing'
 let currentLevel = 1;
 let levelDef     = LEVEL_DEFS[0];
 
-let player, camX, particles=[], spikes=[], coins=[], frame=0, deathDelay=0, jumpHeld=false;
+let player, camX, particles, spikes, coins, frame, deathDelay, jumpHeld;
 let coinsCollected, totalCoins;
 let winParticles = [];
 let newLevelUnlocked = false;
@@ -586,7 +572,6 @@ function updateFade() {
       else if (fadeTarget.startsWith('level:')) {
         const id = parseInt(fadeTarget.split(':')[1]);
         loadLevel(id).then(() => { screen = 'ready'; });
-        // screen stays on fade-black overlay until promise resolves
       }
       fadeDir = 1;
     }
@@ -620,8 +605,7 @@ async function loadLevel(id) {
     const json = await resp.json();
     loadLevelFromJSON(json);
   } catch(e) {
-    console.warn('loadLevel fetch failed for level', id, e);
-    // Fallback: procedural generation
+    console.warn('No JSON for level', id, '— using procedural fallback');
     moveSpeed = MOVE_SPEED; jumpVel = JUMP_VEL; gravity = GRAVITY; maxJumps = MAX_JUMPS;
     levelLen = LEVEL_LEN; finishX = FINISH_X;
     levelImgCache = {}; levelSpriteCache = {};
@@ -2676,6 +2660,15 @@ function draw() {
 // =============================================
 
 
+// Skin images — add path here as Charlie provides art, matches available:true in SKINS
+const SKIN_IMGS = {};
+function loadSkinImg(id, path) { const img = new Image(); img.src = path; SKIN_IMGS[id] = img; }
+loadSkinImg('thorn', 'images/skin-thorn.png');
+// loadSkinImg('cyborg',  'images/skin-cyborg.png');
+// loadSkinImg('inferno', 'images/skin-inferno.png');
+// loadSkinImg('spino',   'images/skin-spino.png');
+// loadSkinImg('zeus',    'images/skin-zeus.png');
+
 const SKINS = [
   {
     id: 'default',
@@ -2787,8 +2780,3 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-// =============================================
-//  DRAW — LOADING SCREEN
-// =============================================
-
