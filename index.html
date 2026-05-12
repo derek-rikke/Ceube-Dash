@@ -2290,8 +2290,8 @@ function drawLevelSelect() {
   drawBtn(20,14,90,30,'← BACK','rgba(0,20,50,0.80)','#00ccff',13);
   for (const c of getLevelCards()) {
     const ld=LEVEL_DEFS[c.id-1];
-    const unlocked=c.id<=saveData.unlockedLevels;
-    drawLevelCard(c,ld,unlocked,c.id===hoveredLevel && c.id===5);
+    const unlocked=c.id===1||c.id<=saveData.unlockedLevels;
+    drawLevelCard(c,ld,unlocked,(c.id===hoveredLevel)&&(c.id===1||c.id===5));
   }
   ctx.restore();
 }
