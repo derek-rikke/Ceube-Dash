@@ -544,7 +544,7 @@ let screen       = 'title';   // 'title'|'levelselect'|'store'|'ready'|'playing'
 let currentLevel = 1;
 let levelDef     = LEVEL_DEFS[0];
 
-let player, camX, particles, spikes, coins, frame, deathDelay, jumpHeld;
+let player, camX, particles=[], spikes=[], coins=[], frame=0, deathDelay=0, jumpHeld=false;
 let coinsCollected, totalCoins;
 let winParticles = [];
 let newLevelUnlocked = false;
@@ -586,7 +586,7 @@ function updateFade() {
       else if (fadeTarget.startsWith('level:')) {
         const id = parseInt(fadeTarget.split(':')[1]);
         loadLevel(id).then(() => { screen = 'ready'; });
-        screen = 'loading';  // briefly show loading until promise resolves
+        // screen stays on fade-black overlay until promise resolves
       }
       fadeDir = 1;
     }
@@ -910,7 +910,7 @@ function update() {
   gFrame++;
   updateFade();
 
-  if (screen==='title'||screen==='levelselect'||screen==='loading') return;
+  if (screen==='title'||screen==='levelselect') return;
 
   if (screen==='dead') {
     deathDelay++; particles=particles.filter(p=>p.update()); return;
@@ -2791,13 +2791,4 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
 // =============================================
 //  DRAW — LOADING SCREEN
 // =============================================
-function drawLoading() {
-  ctx.fillStyle = '#050f05';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#00e5ff';
-  ctx.font = 'bold 18px "Arial Black",Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('LOADING...', W/2, H/2);
-}
-
 
