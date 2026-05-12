@@ -825,7 +825,7 @@ function handleClick(x, y) {
     // Back button
     if (x>=20&&x<=110&&y>=14&&y<=44) { startFade('title'); return; }
     const id = cardAtPoint(x,y);
-    if (id === 5) startFade(`level:${id}`);
+    if (id === 1 || id === 5) startFade(`level:${id}`);
     return;
   }
   // ----- BUILDER BUTTON (test play mode) -----
