@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Ceube Dash v4.0</title>
+<title>Ceube Dash v4.1</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body {
@@ -72,6 +72,20 @@ let testLevelJSON = null;  // stored for retry during test play
 // Image/sprite caches (populated from JSON on load)
 let levelImgCache = {};     // key: 'sky','ground','parallax1','parallax2'
 let levelSpriteCache = {};  // key: entity type string
+
+// ── Skin images: loaded from images/ folder ──
+const SKIN_IMGS = {};
+function loadSkinImg(id, path) {
+  const img = new Image();
+  img.src = path;
+  SKIN_IMGS[id] = img;
+}
+// Add entries here as Charlie provides skin art:
+loadSkinImg('thorn', 'images/skin-thorn.png');
+// loadSkinImg('cyborg', 'images/skin-cyborg.png');
+// loadSkinImg('inferno', 'images/skin-inferno.png');
+// loadSkinImg('spino',   'images/skin-spino.png');
+// loadSkinImg('zeus',    'images/skin-zeus.png');
 
 // =============================================
 //  SAVE DATA
@@ -244,22 +258,22 @@ function loadLevelFromJSON(json) {
   levelImgCache = {};
   levelSpriteCache = {};
 
-  function loadB64Image(b64, key, cache) {
-    if (!b64) return;
+  function loadImgSrc(src, key, cache) {
+    if (!src) return;
     const img = new Image();
-    img.src = b64;
+    img.src = src;  // works for both base64 data URIs and file paths
     cache[key] = img;
   }
 
   if (json.images) {
-    loadB64Image(json.images.sky,       'sky',       levelImgCache);
-    loadB64Image(json.images.ground,    'ground',    levelImgCache);
-    loadB64Image(json.images.parallax1, 'parallax1', levelImgCache);
-    loadB64Image(json.images.parallax2, 'parallax2', levelImgCache);
+    loadImgSrc(json.images.sky,       'sky',       levelImgCache);
+    loadImgSrc(json.images.ground,    'ground',    levelImgCache);
+    loadImgSrc(json.images.parallax1, 'parallax1', levelImgCache);
+    loadImgSrc(json.images.parallax2, 'parallax2', levelImgCache);
   }
   if (json.sprites) {
     for (const [type, b64] of Object.entries(json.sprites)) {
-      loadB64Image(b64, type, levelSpriteCache);
+      loadImgSrc(b64, type, levelSpriteCache);
     }
   }
 
@@ -571,8 +585,8 @@ function updateFade() {
       else if (fadeTarget === 'store')       screen = 'store';
       else if (fadeTarget.startsWith('level:')) {
         const id = parseInt(fadeTarget.split(':')[1]);
-        loadLevel(id);
-        screen = 'ready';
+        loadLevel(id).then(() => { screen = 'ready'; });
+        screen = 'loading';  // briefly show loading until promise resolves
       }
       fadeDir = 1;
     }
@@ -599,49 +613,41 @@ function reloadTestLevel() {
   screen = 'ready';
 }
 
-function loadLevel(id) {
-  // Level 5 uses Charlie's designed JSON
-  if (id === 5) {
-    loadLevelFromJSON(LEVEL5_JSON);
-    paused = false; frame = 0; jumpHeld = false;
-    camX = 0; particles = []; winParticles = [];
-    deathDelay = 0; winFrame = 0; gravityFlipped = false;
-    for (const pl of platforms) {
-      pl._x=pl.wx; pl._y=pl.wy; pl._prevX=pl.wx; pl._prevY=pl.wy; pl.t=0; pl.riderDX=0;
-    }
-    player = { wx:100, wy:GROUND_Y-P_SIZE, vy:0, onGround:true,
-               jumpsLeft:maxJumps, rot:0, alive:true, trailT:0, onPlatform:null };
-    return;
+async function loadLevel(id) {
+  try {
+    const resp = await fetch(`levels/level-${id}.json`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const json = await resp.json();
+    loadLevelFromJSON(json);
+  } catch(e) {
+    console.warn('loadLevel fetch failed for level', id, e);
+    // Fallback: procedural generation
+    moveSpeed = MOVE_SPEED; jumpVel = JUMP_VEL; gravity = GRAVITY; maxJumps = MAX_JUMPS;
+    levelLen = LEVEL_LEN; finishX = FINISH_X;
+    levelImgCache = {}; levelSpriteCache = {};
+    currentLevel   = id;
+    levelDef       = LEVEL_DEFS[id - 1];
+    spikes         = buildSpikes(id);
+    coins          = buildCoins(id);
+    platforms      = buildPlatforms(id).map(p => ({...p, _x: p.wx, _y: p.wy, _prevX: p.wx, _prevY: p.wy}));
+    portals        = buildPortals(id);
+    gravFlips      = buildGravFlips(id);
+    ghostBalls     = buildGhostBalls(id);
+    ceilSpikes     = buildCeilSpikes(id);
+    solidBlocks    = buildSolidBlocks(id);
+    totalCoins     = coins.length;
+    coinsCollected = 0;
   }
-  moveSpeed = MOVE_SPEED; jumpVel = JUMP_VEL; gravity = GRAVITY; maxJumps = MAX_JUMPS;
-  levelLen = LEVEL_LEN; finishX = FINISH_X;
-  levelImgCache = {}; levelSpriteCache = {};
-  currentLevel   = id;
-  levelDef       = LEVEL_DEFS[id - 1];
-  spikes         = buildSpikes(id);
-  coins          = buildCoins(id);
-  platforms      = buildPlatforms(id).map(p => ({...p, _x: p.wx, _y: p.wy, _prevX: p.wx, _prevY: p.wy}));
-  portals        = buildPortals(id);
-  gravFlips      = buildGravFlips(id);
-  ghostBalls     = buildGhostBalls(id);
-  ceilSpikes     = buildCeilSpikes(id);
-  solidBlocks    = buildSolidBlocks(id);
-  paused         = false;
-  totalCoins     = coins.length;
-  coinsCollected = 0;
-  frame          = 0;
-  jumpHeld       = false;
-  camX           = 0;
-  particles      = [];
-  winParticles   = [];
-  deathDelay     = 0;
-  winFrame       = 0;
-  gravityFlipped = false;
+  paused = false; frame = 0; jumpHeld = false;
+  camX = 0; particles = []; winParticles = [];
+  deathDelay = 0; winFrame = 0; gravityFlipped = false;
+  for (const pl of platforms) {
+    pl._x=pl.wx; pl._y=pl.wy; pl._prevX=pl.wx; pl._prevY=pl.wy; pl.t=0; pl.riderDX=0;
+  }
   player = {
     wx: 100, wy: GROUND_Y - P_SIZE,
     vy: 0, onGround: true, jumpsLeft: maxJumps,
-    rot: 0, alive: true, trailT: 0,
-    onPlatform: null,  // reference to platform player is riding
+    rot: 0, alive: true, trailT: 0, onPlatform: null,
   };
 }
 
@@ -750,7 +756,7 @@ window.addEventListener('keydown', e => {
   if (e.code==='Space'||e.code==='ArrowUp') {
     e.preventDefault();
     if (screen==='ready')  { screen='playing'; return; }
-    if (screen==='dead' && deathDelay>45) { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel);screen='ready';} return; }
+    if (screen==='dead' && deathDelay>45) { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel).then(()=>{screen='ready';});} return; }
     if (paused) return;
     doJump();
   }
@@ -843,16 +849,16 @@ function handleClick(x, y) {
     // Two buttons: retry (left) | menu (right)
     const by=H/2+80, bh=46;
     if (y>=by&&y<=by+bh) {
-      if (x<W/2) { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel);screen='ready';} }
+      if (x<W/2) { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel).then(()=>{screen='ready';});} }
       else        { if(isTestPlay){reloadTestLevel();}else{startFade('levelselect');} }
-    } else { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel);screen='ready';} }
+    } else { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel).then(()=>{screen='ready';});} }
     return;
   }
   // ----- WIN -----
   if (screen==='win') {
     const by=H/2+100, bh=46;
     if (y>=by&&y<=by+bh) {
-      if (x<W/2) { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel);screen='ready';} }
+      if (x<W/2) { if(isTestPlay){reloadTestLevel();}else{loadLevel(currentLevel).then(()=>{screen='ready';});} }
       else        { if(isTestPlay){reloadTestLevel();}else{startFade('levelselect');} }
     }
     return;
@@ -904,7 +910,7 @@ function update() {
   gFrame++;
   updateFade();
 
-  if (screen==='title'||screen==='levelselect') return;
+  if (screen==='title'||screen==='levelselect'||screen==='loading') return;
 
   if (screen==='dead') {
     deathDelay++; particles=particles.filter(p=>p.update()); return;
@@ -2668,8 +2674,7 @@ function draw() {
 // =============================================
 //  LEVEL 5 DATA — HEAVEN (Charlie's design)
 // =============================================
-const LEVEL5_JSON = 
-{"id":5,"name":"HEAVEN","emoji":"\u2601\ufe0f","length":7000,"physics":{"moveSpeed":5.5,"jumpVel":-11.8,"gravity":0.7,"maxJumps":1},"entities":[{"type":"platform","x":352,"y":256,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":640,"y":128,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":704,"y":256,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":544,"y":256,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":864,"y":192,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":1152,"y":256,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":1312,"y":160,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":1312,"y":288,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"spike","x":288,"y":322,"w":32,"h":32},{"type":"spike","x":384,"y":322,"w":32,"h":32},{"type":"spike","x":416,"y":322,"w":32,"h":32},{"type":"spike","x":352,"y":322,"w":32,"h":32},{"type":"spike","x":288,"y":322,"w":32,"h":32},{"type":"spike","x":384,"y":322,"w":32,"h":32},{"type":"spike","x":448,"y":322,"w":32,"h":32},{"type":"spike","x":352,"y":322,"w":32,"h":32},{"type":"spike","x":320,"y":322,"w":32,"h":32},{"type":"spike","x":384,"y":322,"w":32,"h":32},{"type":"spike","x":480,"y":322,"w":32,"h":32},{"type":"spike","x":480,"y":322,"w":32,"h":32},{"type":"spike","x":512,"y":322,"w":32,"h":32},{"type":"spike","x":544,"y":322,"w":32,"h":32},{"type":"spike","x":608,"y":322,"w":32,"h":32},{"type":"spike","x":608,"y":322,"w":32,"h":32},{"type":"spike","x":704,"y":322,"w":32,"h":32},{"type":"spike","x":704,"y":322,"w":32,"h":32},{"type":"spike","x":576,"y":322,"w":32,"h":32},{"type":"spike","x":544,"y":322,"w":32,"h":32},{"type":"spike","x":768,"y":322,"w":32,"h":32},{"type":"spike","x":640,"y":322,"w":32,"h":32},{"type":"spike","x":704,"y":322,"w":32,"h":32},{"type":"spike","x":736,"y":322,"w":32,"h":32},{"type":"spike","x":576,"y":322,"w":32,"h":32},{"type":"spike","x":704,"y":322,"w":32,"h":32},{"type":"spike","x":736,"y":322,"w":32,"h":32},{"type":"spike","x":704,"y":322,"w":32,"h":32},{"type":"spike","x":640,"y":322,"w":32,"h":32},{"type":"spike","x":640,"y":322,"w":32,"h":32},{"type":"spike","x":672,"y":322,"w":32,"h":32},{"type":"spike","x":736,"y":322,"w":32,"h":32},{"type":"spike","x":800,"y":322,"w":32,"h":32},{"type":"spike","x":864,"y":322,"w":32,"h":32},{"type":"spike","x":864,"y":322,"w":32,"h":32},{"type":"spike","x":896,"y":322,"w":32,"h":32},{"type":"spike","x":864,"y":322,"w":32,"h":32},{"type":"spike","x":800,"y":322,"w":32,"h":32},{"type":"spike","x":800,"y":322,"w":32,"h":32},{"type":"spike","x":832,"y":322,"w":32,"h":32},{"type":"spike","x":896,"y":322,"w":32,"h":32},{"type":"spike","x":960,"y":322,"w":32,"h":32},{"type":"spike","x":992,"y":322,"w":32,"h":32},{"type":"spike","x":992,"y":322,"w":32,"h":32},{"type":"spike","x":992,"y":322,"w":32,"h":32},{"type":"spike","x":960,"y":322,"w":32,"h":32},{"type":"spike","x":928,"y":322,"w":32,"h":32},{"type":"spike","x":1088,"y":322,"w":32,"h":32},{"type":"spike","x":1088,"y":322,"w":32,"h":32},{"type":"spike","x":1056,"y":322,"w":32,"h":32},{"type":"spike","x":1024,"y":322,"w":32,"h":32},{"type":"spike","x":1152,"y":322,"w":32,"h":32},{"type":"spike","x":1152,"y":322,"w":32,"h":32},{"type":"spike","x":1088,"y":322,"w":32,"h":32},{"type":"spike","x":1120,"y":322,"w":32,"h":32},{"type":"spike","x":1152,"y":322,"w":32,"h":32},{"type":"spike","x":1184,"y":322,"w":32,"h":32},{"type":"spike","x":1184,"y":322,"w":32,"h":32},{"type":"spike","x":1248,"y":322,"w":32,"h":32},{"type":"spike","x":1280,"y":322,"w":32,"h":32},{"type":"spike","x":1248,"y":322,"w":32,"h":32},{"type":"spike","x":1184,"y":322,"w":32,"h":32},{"type":"spike","x":1248,"y":322,"w":32,"h":32},{"type":"spike","x":1280,"y":322,"w":32,"h":32},{"type":"spike","x":1216,"y":322,"w":32,"h":32},{"type":"spike","x":1216,"y":322,"w":32,"h":32},{"type":"spike","x":1312,"y":322,"w":32,"h":32},{"type":"spike","x":1312,"y":322,"w":32,"h":32},{"type":"spike","x":1312,"y":322,"w":32,"h":32},{"type":"spike","x":1376,"y":322,"w":32,"h":32},{"type":"spike","x":1376,"y":322,"w":32,"h":32},{"type":"spike","x":1376,"y":322,"w":32,"h":32},{"type":"spike","x":1312,"y":322,"w":32,"h":32},{"type":"spike","x":1376,"y":322,"w":32,"h":32},{"type":"spike","x":1376,"y":322,"w":32,"h":32},{"type":"spike","x":1312,"y":322,"w":32,"h":32},{"type":"spike","x":1344,"y":322,"w":32,"h":32},{"type":"spike","x":1344,"y":322,"w":32,"h":32},{"type":"spike","x":1408,"y":322,"w":32,"h":32},{"type":"spike","x":1440,"y":322,"w":32,"h":32},{"type":"spike","x":1440,"y":322,"w":32,"h":32},{"type":"block","x":288,"y":320,"w":32,"h":32},{"type":"block","x":320,"y":320,"w":32,"h":32},{"type":"spike","x":1472,"y":322,"w":32,"h":32},{"type":"spike","x":1504,"y":322,"w":32,"h":32},{"type":"spike","x":1536,"y":322,"w":32,"h":32},{"type":"spike","x":1568,"y":322,"w":32,"h":32},{"type":"spike","x":1600,"y":322,"w":32,"h":32},{"type":"spike","x":1632,"y":322,"w":32,"h":32},{"type":"spike","x":1696,"y":322,"w":32,"h":32},{"type":"spike","x":1728,"y":322,"w":32,"h":32},{"type":"spike","x":1728,"y":322,"w":32,"h":32},{"type":"spike","x":1664,"y":322,"w":32,"h":32},{"type":"spike","x":1696,"y":322,"w":32,"h":32},{"type":"spike","x":1792,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1824,"y":322,"w":32,"h":32},{"type":"spike","x":1760,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1760,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1696,"y":322,"w":32,"h":32},{"type":"spike","x":1824,"y":322,"w":32,"h":32},{"type":"spike","x":1952,"y":322,"w":32,"h":32},{"type":"spike","x":1920,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":2784,"y":322,"w":32,"h":32},{"type":"spike","x":2784,"y":322,"w":32,"h":32},{"type":"spike","x":2784,"y":322,"w":32,"h":32},{"type":"spike","x":2784,"y":322,"w":32,"h":32},{"type":"spike","x":2784,"y":322,"w":32,"h":32},{"type":"spike","x":2848,"y":322,"w":32,"h":32},{"type":"spike","x":2528,"y":322,"w":32,"h":32},{"type":"spike","x":2656,"y":322,"w":32,"h":32},{"type":"spike","x":2688,"y":322,"w":32,"h":32},{"type":"spike","x":2816,"y":322,"w":32,"h":32},{"type":"spike","x":2784,"y":322,"w":32,"h":32},{"type":"spike","x":2656,"y":322,"w":32,"h":32},{"type":"spike","x":2816,"y":322,"w":32,"h":32},{"type":"spike","x":2720,"y":322,"w":32,"h":32},{"type":"spike","x":2688,"y":322,"w":32,"h":32},{"type":"spike","x":2720,"y":322,"w":32,"h":32},{"type":"spike","x":2752,"y":322,"w":32,"h":32},{"type":"spike","x":2592,"y":322,"w":32,"h":32},{"type":"spike","x":2592,"y":322,"w":32,"h":32},{"type":"spike","x":2720,"y":322,"w":32,"h":32},{"type":"spike","x":2592,"y":322,"w":32,"h":32},{"type":"spike","x":2592,"y":322,"w":32,"h":32},{"type":"spike","x":2656,"y":322,"w":32,"h":32},{"type":"spike","x":2592,"y":322,"w":32,"h":32},{"type":"spike","x":2592,"y":322,"w":32,"h":32},{"type":"spike","x":2560,"y":322,"w":32,"h":32},{"type":"spike","x":2592,"y":322,"w":32,"h":32},{"type":"spike","x":2656,"y":322,"w":32,"h":32},{"type":"spike","x":2624,"y":322,"w":32,"h":32},{"type":"spike","x":2464,"y":322,"w":32,"h":32},{"type":"spike","x":2496,"y":322,"w":32,"h":32},{"type":"spike","x":2432,"y":322,"w":32,"h":32},{"type":"spike","x":2432,"y":322,"w":32,"h":32},{"type":"spike","x":2368,"y":322,"w":32,"h":32},{"type":"spike","x":2368,"y":322,"w":32,"h":32},{"type":"spike","x":2400,"y":322,"w":32,"h":32},{"type":"spike","x":2304,"y":322,"w":32,"h":32},{"type":"spike","x":2304,"y":322,"w":32,"h":32},{"type":"spike","x":2336,"y":322,"w":32,"h":32},{"type":"spike","x":2240,"y":322,"w":32,"h":32},{"type":"spike","x":2176,"y":322,"w":32,"h":32},{"type":"spike","x":2368,"y":322,"w":32,"h":32},{"type":"spike","x":2272,"y":322,"w":32,"h":32},{"type":"spike","x":2240,"y":322,"w":32,"h":32},{"type":"spike","x":2208,"y":322,"w":32,"h":32},{"type":"spike","x":2176,"y":322,"w":32,"h":32},{"type":"spike","x":2080,"y":322,"w":32,"h":32},{"type":"spike","x":2240,"y":322,"w":32,"h":32},{"type":"spike","x":2144,"y":322,"w":32,"h":32},{"type":"spike","x":2272,"y":322,"w":32,"h":32},{"type":"spike","x":2048,"y":322,"w":32,"h":32},{"type":"spike","x":2112,"y":322,"w":32,"h":32},{"type":"spike","x":2112,"y":322,"w":32,"h":32},{"type":"spike","x":2048,"y":322,"w":32,"h":32},{"type":"spike","x":2016,"y":322,"w":32,"h":32},{"type":"spike","x":1984,"y":322,"w":32,"h":32},{"type":"spike","x":1984,"y":322,"w":32,"h":32},{"type":"spike","x":1888,"y":322,"w":32,"h":32},{"type":"spike","x":1856,"y":322,"w":32,"h":32},{"type":"spike","x":1856,"y":322,"w":32,"h":32},{"type":"platform","x":1504,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":1664,"y":160,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":1824,"y":192,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":2048,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":2496,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":2720,"y":192,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"spike","x":2880,"y":322,"w":32,"h":32},{"type":"spike","x":2880,"y":322,"w":32,"h":32},{"type":"spike","x":2912,"y":322,"w":32,"h":32},{"type":"spike","x":2912,"y":322,"w":32,"h":32},{"type":"spike","x":2944,"y":322,"w":32,"h":32},{"type":"spike","x":2976,"y":322,"w":32,"h":32},{"type":"spike","x":2976,"y":322,"w":32,"h":32},{"type":"spike","x":3008,"y":322,"w":32,"h":32},{"type":"spike","x":3040,"y":322,"w":32,"h":32},{"type":"spike","x":3040,"y":322,"w":32,"h":32},{"type":"spike","x":3104,"y":322,"w":32,"h":32},{"type":"spike","x":3136,"y":322,"w":32,"h":32},{"type":"spike","x":3136,"y":322,"w":32,"h":32},{"type":"spike","x":3072,"y":322,"w":32,"h":32},{"type":"spike","x":3040,"y":322,"w":32,"h":32},{"type":"spike","x":3200,"y":322,"w":32,"h":32},{"type":"spike","x":3232,"y":322,"w":32,"h":32},{"type":"spike","x":3136,"y":322,"w":32,"h":32},{"type":"spike","x":3264,"y":322,"w":32,"h":32},{"type":"spike","x":3232,"y":322,"w":32,"h":32},{"type":"spike","x":3136,"y":322,"w":32,"h":32},{"type":"spike","x":3200,"y":322,"w":32,"h":32},{"type":"spike","x":3136,"y":322,"w":32,"h":32},{"type":"spike","x":3168,"y":322,"w":32,"h":32},{"type":"spike","x":3296,"y":322,"w":32,"h":32},{"type":"spike","x":3296,"y":322,"w":32,"h":32},{"type":"spike","x":3328,"y":322,"w":32,"h":32},{"type":"spike","x":3328,"y":322,"w":32,"h":32},{"type":"spike","x":3360,"y":322,"w":32,"h":32},{"type":"spike","x":3392,"y":322,"w":32,"h":32},{"type":"spike","x":3392,"y":322,"w":32,"h":32},{"type":"spike","x":4704,"y":322,"w":32,"h":32},{"type":"spike","x":4576,"y":322,"w":32,"h":32},{"type":"spike","x":4672,"y":322,"w":32,"h":32},{"type":"spike","x":4640,"y":322,"w":32,"h":32},{"type":"spike","x":4544,"y":322,"w":32,"h":32},{"type":"spike","x":4672,"y":322,"w":32,"h":32},{"type":"spike","x":4544,"y":322,"w":32,"h":32},{"type":"spike","x":4544,"y":322,"w":32,"h":32},{"type":"spike","x":4608,"y":322,"w":32,"h":32},{"type":"spike","x":4480,"y":322,"w":32,"h":32},{"type":"spike","x":4480,"y":322,"w":32,"h":32},{"type":"spike","x":4544,"y":322,"w":32,"h":32},{"type":"spike","x":4416,"y":322,"w":32,"h":32},{"type":"spike","x":4416,"y":322,"w":32,"h":32},{"type":"spike","x":4512,"y":322,"w":32,"h":32},{"type":"spike","x":4448,"y":322,"w":32,"h":32},{"type":"spike","x":4448,"y":322,"w":32,"h":32},{"type":"spike","x":4352,"y":322,"w":32,"h":32},{"type":"spike","x":4448,"y":322,"w":32,"h":32},{"type":"spike","x":4352,"y":322,"w":32,"h":32},{"type":"spike","x":4448,"y":322,"w":32,"h":32},{"type":"spike","x":4352,"y":322,"w":32,"h":32},{"type":"spike","x":4288,"y":322,"w":32,"h":32},{"type":"spike","x":4512,"y":322,"w":32,"h":32},{"type":"spike","x":4384,"y":322,"w":32,"h":32},{"type":"spike","x":4576,"y":322,"w":32,"h":32},{"type":"spike","x":4416,"y":322,"w":32,"h":32},{"type":"spike","x":4352,"y":322,"w":32,"h":32},{"type":"spike","x":4288,"y":322,"w":32,"h":32},{"type":"spike","x":4224,"y":322,"w":32,"h":32},{"type":"spike","x":4320,"y":322,"w":32,"h":32},{"type":"spike","x":4320,"y":322,"w":32,"h":32},{"type":"spike","x":4256,"y":322,"w":32,"h":32},{"type":"spike","x":4160,"y":322,"w":32,"h":32},{"type":"spike","x":4128,"y":322,"w":32,"h":32},{"type":"spike","x":4224,"y":322,"w":32,"h":32},{"type":"spike","x":4224,"y":322,"w":32,"h":32},{"type":"spike","x":4160,"y":322,"w":32,"h":32},{"type":"spike","x":4192,"y":322,"w":32,"h":32},{"type":"spike","x":4096,"y":322,"w":32,"h":32},{"type":"spike","x":4064,"y":322,"w":32,"h":32},{"type":"spike","x":4032,"y":322,"w":32,"h":32},{"type":"spike","x":3968,"y":322,"w":32,"h":32},{"type":"spike","x":4000,"y":322,"w":32,"h":32},{"type":"spike","x":3936,"y":322,"w":32,"h":32},{"type":"spike","x":3936,"y":322,"w":32,"h":32},{"type":"spike","x":3872,"y":322,"w":32,"h":32},{"type":"spike","x":3872,"y":322,"w":32,"h":32},{"type":"spike","x":3904,"y":322,"w":32,"h":32},{"type":"spike","x":3808,"y":322,"w":32,"h":32},{"type":"spike","x":3808,"y":322,"w":32,"h":32},{"type":"spike","x":3840,"y":322,"w":32,"h":32},{"type":"spike","x":3776,"y":322,"w":32,"h":32},{"type":"spike","x":3744,"y":322,"w":32,"h":32},{"type":"spike","x":3744,"y":322,"w":32,"h":32},{"type":"spike","x":3680,"y":322,"w":32,"h":32},{"type":"spike","x":3680,"y":322,"w":32,"h":32},{"type":"spike","x":3776,"y":322,"w":32,"h":32},{"type":"spike","x":3680,"y":322,"w":32,"h":32},{"type":"spike","x":3680,"y":322,"w":32,"h":32},{"type":"spike","x":3680,"y":322,"w":32,"h":32},{"type":"spike","x":3712,"y":322,"w":32,"h":32},{"type":"spike","x":3648,"y":322,"w":32,"h":32},{"type":"spike","x":3616,"y":322,"w":32,"h":32},{"type":"spike","x":3552,"y":322,"w":32,"h":32},{"type":"spike","x":3584,"y":322,"w":32,"h":32},{"type":"spike","x":3456,"y":322,"w":32,"h":32},{"type":"spike","x":3520,"y":322,"w":32,"h":32},{"type":"spike","x":3488,"y":322,"w":32,"h":32},{"type":"spike","x":3424,"y":322,"w":32,"h":32},{"type":"platform","x":3168,"y":256,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":3392,"y":192,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":4224,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":4416,"y":160,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":4640,"y":128,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"spike","x":4736,"y":322,"w":32,"h":32},{"type":"spike","x":4768,"y":322,"w":32,"h":32},{"type":"spike","x":4768,"y":322,"w":32,"h":32},{"type":"spike","x":4800,"y":322,"w":32,"h":32},{"type":"spike","x":4832,"y":322,"w":32,"h":32},{"type":"spike","x":4832,"y":322,"w":32,"h":32},{"type":"spike","x":4864,"y":322,"w":32,"h":32},{"type":"spike","x":4864,"y":322,"w":32,"h":32},{"type":"spike","x":4864,"y":322,"w":32,"h":32},{"type":"spike","x":4896,"y":322,"w":32,"h":32},{"type":"spike","x":4928,"y":322,"w":32,"h":32},{"type":"spike","x":4928,"y":322,"w":32,"h":32},{"type":"spike","x":4960,"y":322,"w":32,"h":32},{"type":"spike","x":4992,"y":322,"w":32,"h":32},{"type":"spike","x":5024,"y":322,"w":32,"h":32},{"type":"spike","x":5056,"y":322,"w":32,"h":32},{"type":"spike","x":5088,"y":322,"w":32,"h":32},{"type":"spike","x":5088,"y":322,"w":32,"h":32},{"type":"spike","x":5120,"y":322,"w":32,"h":32},{"type":"spike","x":5152,"y":322,"w":32,"h":32},{"type":"spike","x":5216,"y":322,"w":32,"h":32},{"type":"spike","x":5248,"y":322,"w":32,"h":32},{"type":"spike","x":5216,"y":322,"w":32,"h":32},{"type":"spike","x":5184,"y":322,"w":32,"h":32},{"type":"spike","x":5280,"y":322,"w":32,"h":32},{"type":"spike","x":5280,"y":322,"w":32,"h":32},{"type":"spike","x":5280,"y":322,"w":32,"h":32},{"type":"spike","x":5280,"y":322,"w":32,"h":32},{"type":"spike","x":5312,"y":322,"w":32,"h":32},{"type":"spike","x":5344,"y":322,"w":32,"h":32},{"type":"spike","x":5408,"y":322,"w":32,"h":32},{"type":"spike","x":5440,"y":322,"w":32,"h":32},{"type":"spike","x":5408,"y":322,"w":32,"h":32},{"type":"spike","x":5376,"y":322,"w":32,"h":32},{"type":"spike","x":5408,"y":322,"w":32,"h":32},{"type":"spike","x":5440,"y":322,"w":32,"h":32},{"type":"spike","x":5472,"y":322,"w":32,"h":32},{"type":"spike","x":5536,"y":322,"w":32,"h":32},{"type":"spike","x":5568,"y":322,"w":32,"h":32},{"type":"spike","x":5504,"y":322,"w":32,"h":32},{"type":"spike","x":5504,"y":322,"w":32,"h":32},{"type":"spike","x":5568,"y":322,"w":32,"h":32},{"type":"spike","x":5664,"y":322,"w":32,"h":32},{"type":"spike","x":5632,"y":322,"w":32,"h":32},{"type":"spike","x":5568,"y":322,"w":32,"h":32},{"type":"spike","x":5664,"y":322,"w":32,"h":32},{"type":"spike","x":5664,"y":322,"w":32,"h":32},{"type":"spike","x":5568,"y":322,"w":32,"h":32},{"type":"spike","x":5632,"y":322,"w":32,"h":32},{"type":"spike","x":5696,"y":322,"w":32,"h":32},{"type":"spike","x":5664,"y":322,"w":32,"h":32},{"type":"spike","x":5600,"y":322,"w":32,"h":32},{"type":"spike","x":5664,"y":322,"w":32,"h":32},{"type":"spike","x":5664,"y":322,"w":32,"h":32},{"type":"spike","x":5632,"y":322,"w":32,"h":32},{"type":"spike","x":5728,"y":322,"w":32,"h":32},{"type":"spike","x":5792,"y":322,"w":32,"h":32},{"type":"spike","x":5856,"y":322,"w":32,"h":32},{"type":"spike","x":5760,"y":322,"w":32,"h":32},{"type":"spike","x":5696,"y":322,"w":32,"h":32},{"type":"spike","x":5600,"y":322,"w":32,"h":32},{"type":"spike","x":5568,"y":322,"w":32,"h":32},{"type":"spike","x":5504,"y":322,"w":32,"h":32},{"type":"spike","x":5440,"y":322,"w":32,"h":32},{"type":"spike","x":5376,"y":322,"w":32,"h":32},{"type":"spike","x":5344,"y":322,"w":32,"h":32},{"type":"spike","x":5536,"y":322,"w":32,"h":32},{"type":"spike","x":5792,"y":322,"w":32,"h":32},{"type":"spike","x":5824,"y":322,"w":32,"h":32},{"type":"spike","x":5984,"y":322,"w":32,"h":32},{"type":"spike","x":5920,"y":322,"w":32,"h":32},{"type":"spike","x":5856,"y":322,"w":32,"h":32},{"type":"spike","x":5920,"y":322,"w":32,"h":32},{"type":"spike","x":5888,"y":322,"w":32,"h":32},{"type":"spike","x":5952,"y":322,"w":32,"h":32},{"type":"spike","x":6048,"y":322,"w":32,"h":32},{"type":"spike","x":5984,"y":322,"w":32,"h":32},{"type":"spike","x":6016,"y":322,"w":32,"h":32},{"type":"spike","x":6080,"y":322,"w":32,"h":32},{"type":"spike","x":6112,"y":322,"w":32,"h":32},{"type":"spike","x":6144,"y":322,"w":32,"h":32},{"type":"spike","x":6176,"y":322,"w":32,"h":32},{"type":"spike","x":6208,"y":322,"w":32,"h":32},{"type":"spike","x":6240,"y":322,"w":32,"h":32},{"type":"spike","x":6240,"y":322,"w":32,"h":32},{"type":"spike","x":6304,"y":322,"w":32,"h":32},{"type":"spike","x":6368,"y":322,"w":32,"h":32},{"type":"spike","x":6336,"y":322,"w":32,"h":32},{"type":"spike","x":6304,"y":322,"w":32,"h":32},{"type":"spike","x":6272,"y":322,"w":32,"h":32},{"type":"spike","x":6336,"y":322,"w":32,"h":32},{"type":"spike","x":6400,"y":322,"w":32,"h":32},{"type":"spike","x":6400,"y":322,"w":32,"h":32},{"type":"spike","x":6464,"y":322,"w":32,"h":32},{"type":"spike","x":6400,"y":322,"w":32,"h":32},{"type":"spike","x":6496,"y":322,"w":32,"h":32},{"type":"spike","x":6400,"y":322,"w":32,"h":32},{"type":"spike","x":6432,"y":322,"w":32,"h":32},{"type":"spike","x":6464,"y":322,"w":32,"h":32},{"type":"spike","x":6528,"y":322,"w":32,"h":32},{"type":"spike","x":6560,"y":322,"w":32,"h":32},{"type":"spike","x":6560,"y":322,"w":32,"h":32},{"type":"spike","x":6592,"y":322,"w":32,"h":32},{"type":"spike","x":6592,"y":322,"w":32,"h":32},{"type":"spike","x":6592,"y":322,"w":32,"h":32},{"type":"spike","x":6688,"y":322,"w":32,"h":32},{"type":"spike","x":6656,"y":322,"w":32,"h":32},{"type":"spike","x":6624,"y":322,"w":32,"h":32},{"type":"platform","x":4832,"y":192,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":5056,"y":128,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":5312,"y":128,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":5216,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":5408,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":5600,"y":192,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":5792,"y":256,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":5760,"y":128,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":6176,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":6368,"y":160,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"platform","x":6560,"y":192,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"coin","x":416,"y":224},{"type":"coin","x":608,"y":224},{"type":"coin","x":768,"y":224},{"type":"coin","x":704,"y":96},{"type":"coin","x":928,"y":160},{"type":"coin","x":1216,"y":224},{"type":"coin","x":1376,"y":256},{"type":"coin","x":1376,"y":128},{"type":"coin","x":1568,"y":192},{"type":"coin","x":1728,"y":128},{"type":"coin","x":1888,"y":160},{"type":"coin","x":2560,"y":192},{"type":"coin","x":2784,"y":160},{"type":"coin","x":3232,"y":224},{"type":"coin","x":3456,"y":160},{"type":"coin","x":4288,"y":192},{"type":"coin","x":4480,"y":128},{"type":"coin","x":4704,"y":96},{"type":"coin","x":4896,"y":160},{"type":"coin","x":5120,"y":96},{"type":"coin","x":5280,"y":192},{"type":"coin","x":5376,"y":96},{"type":"coin","x":5472,"y":192},{"type":"coin","x":5664,"y":160},{"type":"coin","x":5824,"y":96},{"type":"coin","x":5856,"y":224},{"type":"coin","x":6240,"y":192},{"type":"coin","x":6432,"y":128},{"type":"coin","x":6624,"y":160},{"type":"platform","x":992,"y":320,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"coin","x":1056,"y":288},{"type":"coin","x":2112,"y":192},{"type":"platform","x":3616,"y":320,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"gravflip","x":3776,"y":322,"w":64,"h":16},{"type":"gravflip","x":3840,"y":322,"w":64,"h":16},{"type":"gravflip","x":3904,"y":322,"w":64,"h":16},{"type":"gravflip","x":3712,"y":322,"w":64,"h":16},{"type":"ceilspike","x":4064,"y":32,"w":32,"h":32},{"type":"ceilspike","x":4064,"y":0,"w":32,"h":32},{"type":"ceilspike","x":4096,"y":0,"w":32,"h":32},{"type":"block","x":4096,"y":32,"w":32,"h":32},{"type":"block","x":4320,"y":0,"w":32,"h":32},{"type":"block","x":4320,"y":160,"w":32,"h":32},{"type":"spike","x":4320,"y":128,"w":32,"h":32},{"type":"ceilspike","x":4320,"y":32,"w":32,"h":32},{"type":"gravflip","x":4544,"y":0,"w":64,"h":16},{"type":"block","x":4544,"y":160,"w":32,"h":32},{"type":"block","x":4576,"y":160,"w":32,"h":32},{"type":"block","x":4608,"y":160,"w":32,"h":32},{"type":"block","x":4640,"y":160,"w":32,"h":32},{"type":"gravflip","x":2240,"y":322,"w":64,"h":16},{"type":"gravflip","x":2560,"y":0,"w":64,"h":16},{"type":"block","x":512,"y":224,"w":32,"h":32},{"type":"block","x":512,"y":256,"w":32,"h":32},{"type":"block","x":672,"y":256,"w":32,"h":32},{"type":"block","x":1056,"y":192,"w":32,"h":32},{"type":"block","x":1056,"y":160,"w":32,"h":32},{"type":"block","x":1056,"y":128,"w":32,"h":32},{"type":"block","x":1472,"y":288,"w":32,"h":32},{"type":"block","x":1536,"y":288,"w":32,"h":32},{"type":"block","x":1504,"y":288,"w":32,"h":32},{"type":"block","x":1632,"y":256,"w":32,"h":32},{"type":"block","x":1728,"y":224,"w":32,"h":32},{"type":"block","x":1824,"y":192,"w":32,"h":32},{"type":"block","x":1984,"y":288,"w":32,"h":32},{"type":"spike","x":1984,"y":256,"w":32,"h":32},{"type":"ceilspike","x":1984,"y":32,"w":32,"h":32},{"type":"block","x":1984,"y":0,"w":32,"h":32},{"type":"block","x":2400,"y":288,"w":32,"h":32},{"type":"block","x":2400,"y":256,"w":32,"h":32},{"type":"block","x":2400,"y":224,"w":32,"h":32},{"type":"block","x":2400,"y":192,"w":32,"h":32},{"type":"block","x":2400,"y":160,"w":32,"h":32},{"type":"block","x":2400,"y":320,"w":32,"h":32},{"type":"block","x":2400,"y":128,"w":32,"h":32},{"type":"block","x":2400,"y":96,"w":32,"h":32},{"type":"block","x":2400,"y":64,"w":32,"h":32},{"type":"spike","x":2304,"y":288,"w":32,"h":32},{"type":"spike","x":2208,"y":288,"w":32,"h":32},{"type":"block","x":2208,"y":320,"w":32,"h":32},{"type":"block","x":2304,"y":320,"w":32,"h":32},{"type":"platform","x":896,"y":320,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"block","x":2656,"y":256,"w":32,"h":32},{"type":"block","x":2656,"y":32,"w":32,"h":32},{"type":"ceilspike","x":2656,"y":64,"w":32,"h":32},{"type":"spike","x":2656,"y":224,"w":32,"h":32},{"type":"coin","x":2592,"y":32},{"type":"coin","x":2560,"y":32},{"type":"coin","x":2592,"y":64},{"type":"coin","x":2560,"y":64},{"type":"block","x":2912,"y":224,"w":32,"h":32},{"type":"block","x":2944,"y":224,"w":32,"h":32},{"type":"block","x":3040,"y":224,"w":32,"h":32},{"type":"block","x":2976,"y":224,"w":32,"h":32},{"type":"block","x":3008,"y":224,"w":32,"h":32},{"type":"block","x":3104,"y":224,"w":32,"h":32},{"type":"block","x":3072,"y":224,"w":32,"h":32},{"type":"block","x":3072,"y":192,"w":32,"h":32},{"type":"block","x":2976,"y":32,"w":32,"h":32},{"type":"ceilspike","x":2976,"y":64,"w":32,"h":32},{"type":"spike","x":3072,"y":160,"w":32,"h":32},{"type":"block","x":5280,"y":320,"w":32,"h":32},{"type":"block","x":5344,"y":320,"w":32,"h":32},{"type":"block","x":5312,"y":320,"w":32,"h":32},{"type":"block","x":5440,"y":288,"w":32,"h":32},{"type":"block","x":5472,"y":288,"w":32,"h":32},{"type":"block","x":5536,"y":288,"w":32,"h":32},{"type":"block","x":5504,"y":288,"w":32,"h":32},{"type":"block","x":5632,"y":256,"w":32,"h":32},{"type":"block","x":5696,"y":256,"w":32,"h":32},{"type":"block","x":5728,"y":256,"w":32,"h":32},{"type":"block","x":5664,"y":256,"w":32,"h":32},{"type":"platform","x":5984,"y":224,"w":96,"h":16,"moveAxis":"x","moveRange":100,"moveSpeed":1.5},{"type":"coin","x":6048,"y":192}],"visual":{"skyColors":["#c5e8f7","#d6effc","#eaf6ff"],"accentColor":"#FFD700"},"sprites":{},"images":{"sky":"
+
 
 const SKINS = [
   {
@@ -2690,8 +2695,8 @@ const SKINS = [
     level: 1,
     emoji: '🌿',
     available: true,
-    image: THORN_IMG,
-    draw: function(ctx, cx, cy, size, rot) { drawImageSkin(ctx, cx, cy, size, rot, THORN_IMG); },
+    image: SKIN_IMGS['thorn'],
+    draw: function(ctx, cx, cy, size, rot) { drawImageSkin(ctx, cx, cy, size, rot, SKIN_IMGS['thorn']); },
   },
   {
     id: 'cyborg',
@@ -2776,10 +2781,23 @@ function loop() { update(); draw(); requestAnimationFrame(loop); }
     }
   } catch(e) { console.warn('Test play load failed:', e); }
   // Normal startup — go to title screen
-  loadLevel(5);  // pre-load level 5 data so it's ready
   screen = 'title';
   loop();
 })();
 </script>
 </body>
 </html>
+
+// =============================================
+//  DRAW — LOADING SCREEN
+// =============================================
+function drawLoading() {
+  ctx.fillStyle = '#050f05';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 18px "Arial Black",Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('LOADING...', W/2, H/2);
+}
+
+
