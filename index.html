@@ -2298,7 +2298,7 @@ function drawLevelSelect() {
 
 function drawLevelCard(c, ld, unlocked, hovered) {
   ctx.save();
-  const isComingSoon = c.id < 5;
+  const isComingSoon = c.id !== 1 && c.id !== 5;
   if (!isComingSoon) {
     const cg=ctx.createLinearGradient(c.x,c.y,c.x,c.y+c.h);
     cg.addColorStop(0,ld.skyColors[0]); cg.addColorStop(1,ld.skyColors[2]);
